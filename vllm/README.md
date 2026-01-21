@@ -20,9 +20,6 @@ chmod u+x run.sh
 
 # Download model
 huggingface-cli download Scicom-intl/gpt-oss-120b-Malaysian-Reasoning-SFT-v0.1
-
-# Run benchmark
-./run.sh gpt-oss-120b-session-1.yaml
 ```
 
 ## Config
@@ -71,7 +68,7 @@ runs:
   
   - name: "run-2"
     model_path: "/path/to/model-b"
-    output_dir: "./benchmark_results"
+    output_dir: "./benchmark_results_segment_B"
     tp_dp_pairs:
       - tp: 2
         dp: 4
@@ -83,4 +80,14 @@ runs:
     concurrency: [100]
     num_prompts: [100]
     output_len: [128]
+```
+
+## Run Benchmark
+
+```bash
+# Using default config.yaml
+./run.sh
+
+# Using custom config (auto-resolves from runs/ folder)
+./run.sh my-config.yaml
 ```
