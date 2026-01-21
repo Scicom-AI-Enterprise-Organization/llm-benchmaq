@@ -1,37 +1,27 @@
 # vLLM Benchmark Script
 
-Simple benchmarking tool for vLLM models.
+Simple benchmarking tool for vLLM models. Automatically starts/stops vLLM server for each parallelism configuration.
 
 ## Pre-requisites
 
 ```bash
-# Install yq
-wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
-chmod +x /usr/bin/yq
-
-# Install jq
-apt-get install jq -y
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 ## Quick Start
 
-### 1. Start vLLM Server
+### 1. Create Config
+
+Copy the template and edit:
 
 ```bash
-vllm serve /path/to/your/model \
-    --tensor-parallel-size 4 \
-    --data-parallel-size 2 \
-    --gpu-memory-utilization 0.90 \
-    --max-model-len 12000 \
-    --max-num-seqs 256 \
-    --dtype bfloat16 \
-    --port 8000 \
-    --disable-log-requests
+cp config.template.yaml config.yaml
 ```
 
 ### 2. Configure Benchmark
 
-Edit `config.yaml` or create a new config:
+Edit `config.yaml`:
 
 ```yaml
 runs:
@@ -53,8 +43,70 @@ runs:
 
 ```bash
 # Using default config.yaml
-./benchmark.sh
+./run.sh
 
 # Using custom config
-./benchmark.sh my-config.yaml
+./run.sh my-config.yaml
 ```
+
+## Multiple Runs
+
+To benchmark multiple models or configurations, add more entries under `runs`:
+
+```yaml
+runs:
+  # First model
+  - name: "model-a-benchmark"
+    model_path: "/path/to/model-a"
+    port: 8000
+    output_dir: "./results/model-a"
+    tp_dp_pairs:
+      - tp: 8
+        dp: 1
+        pp: 1
+    context_size: [1024, 2048]
+    concurrency: [100]
+    num_prompts: [100]
+    output_len: [128]
+
+  # Second model
+  - name: "model-b-benchmark"
+    model_path: "/path/to/model-b"
+    port: 8000
+    output_dir: "./results/model-b"
+    tp_dp_pairs:
+      - tp: 4
+        dp: 2
+        pp: 1
+      - tp: 2
+        dp: 4
+        pp: 1
+    context_size: [1024, 4096, 8192]
+    concurrency: [50, 100]
+    num_prompts: [100]
+    output_len: [128, 256]
+
+  # Third model with different settings
+  - name: "model-c-benchmark"
+    model_path: "/path/to/model-c"
+    port: 8001
+    output_dir: "./results/model-c"
+    gpu_memory_utilization: 0.85
+    tp_dp_pairs:
+      - tp: 8
+        dp: 1
+        pp: 1
+    context_size: [2048]
+    concurrency: [100]
+    num_prompts: [200]
+    output_len: [512]
+```
+
+Each run will:
+1. Start vLLM server with the specified parallelism (TP/DP/PP)
+2. Run all benchmark combinations (context_size × concurrency × num_prompts × output_len)
+3. Stop the server and move to the next configuration
+
+## Examples
+
+See `examples/` folder for sample configurations.
