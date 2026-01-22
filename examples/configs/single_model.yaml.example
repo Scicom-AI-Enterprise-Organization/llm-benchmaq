@@ -1,7 +1,8 @@
 runs:
-  - name: "gpt-oss-120b-run1"
+  - name: "gpt-oss-120b-run"
+    engine: "vllm"
     serve:
-      model_path: "Scicom-intl/gpt-oss-120b-Malaysian-Reasoning-SFT-v0.1"
+      model_path: "/root/gfs/01be5b33/gpt-oss-120b-Malaysian-Reasoning-SFT-v0.1"
       port: 8000
       gpu_memory_utilization: 0.9
       max_model_len: 12000
@@ -10,10 +11,7 @@ runs:
       disable_log_requests: true
       enable_expert_parallel: false
       tp_dp_pairs:
-        - tp: 4
-          dp: 1
-          pp: 1
-        - tp: 4
+        - tp: 8
           dp: 1
           pp: 1
     bench:

@@ -1,113 +1,93 @@
-# vLLM Benchmark
+# vLLM Engine
 
-Benchmarking tool for vLLM models.
+Benchmarking module for [vLLM](https://github.com/vllm-project/vllm) inference server.
 
-## Quick Start
+## How It Works
 
-```bash
-# Install uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
+1. Starts a vLLM server with your specified configuration (model, TP/DP/PP, etc.)
+2. Waits for server to be healthy
+3. Runs benchmarks across all combinations of context sizes, concurrency levels, etc.
+4. Saves results to JSON files
+5. Stops the server and moves to the next TP/DP configuration
 
-# Create virtual environment
-uv venv --python 3.11
-source .venv/bin/activate
+## Module Structure
 
-# Install dependencies
-uv pip install -r requirements.txt
-
-# Make script executable
-chmod u+x run.sh
-
-# Download model
-huggingface-cli download Scicom-intl/gpt-oss-120b-Malaysian-Reasoning-SFT-v0.1
+```
+vllm/
+├── __init__.py         # Entry point - run(config) function
+└── core/
+    ├── server.py       # VLLMServer class (start/stop/health check)
+    └── benchmark.py    # run_benchmark() function
 ```
 
-## Config
+## Config Options
 
-Create a YAML config in `runs/`:
+### serve (Server Configuration)
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `model_path` | string | HuggingFace model path or local path |
+| `port` | int | Server port (default: 8000) |
+| `gpu_memory_utilization` | float | GPU memory usage ratio (0.0-1.0) |
+| `max_model_len` | int | Maximum sequence length |
+| `max_num_seqs` | int | Maximum concurrent sequences |
+| `dtype` | string | Data type (`bfloat16`, `float16`, `auto`) |
+| `disable_log_requests` | bool | Disable request logging |
+| `enable_expert_parallel` | bool | Enable expert parallelism (for MoE models) |
+| `tp_dp_pairs` | list | List of TP/DP/PP configurations to test |
+
+### bench (Benchmark Configuration)
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `output_dir` | string | Directory to save benchmark results |
+| `context_size` | list[int] | Input context sizes to test |
+| `concurrency` | list[int] | Concurrency levels to test |
+| `num_prompts` | list[int] | Number of prompts per benchmark |
+| `output_len` | list[int] | Output token lengths to test |
+
+## Example Config
 
 ```yaml
 runs:
   - name: "my-benchmark"
+    engine: "vllm"
     serve:
-      model_path: "Scicom-intl/gpt-oss-120b-Malaysian-Reasoning-SFT-v0.1"
+      model_path: "meta-llama/Llama-2-7b-hf"
       port: 8000
       gpu_memory_utilization: 0.9
-      max_model_len: 12000
+      max_model_len: 4096
       max_num_seqs: 256
       dtype: "bfloat16"
       disable_log_requests: true
-      enable_expert_parallel: true
+      enable_expert_parallel: false
       tp_dp_pairs:
-        - tp: 4
+        - tp: 1
           dp: 1
           pp: 1
     bench:
       output_dir: "./benchmark_results"
-      context_size: [1024, 2048, 4096]
-      concurrency: [100]
+      context_size: [512, 1024, 2048]
+      concurrency: [50, 100]
       num_prompts: [100]
       output_len: [128]
 ```
 
-### Multiple Runs
+## Output
 
-Add multiple entries under `runs:` for different output naming or benchmarking different models (make sure vLLM supports both models).
+Benchmark results are saved as JSON files in `output_dir`:
 
-```yaml
-runs:
-  - name: "run-1"
-    serve:
-      model_path: "/path/to/model-a"
-      port: 8000
-      gpu_memory_utilization: 0.9
-      max_model_len: 12000
-      max_num_seqs: 256
-      dtype: "bfloat16"
-      disable_log_requests: true
-      enable_expert_parallel: true
-      tp_dp_pairs:
-        - tp: 8
-          dp: 1
-          pp: 1
-    bench:
-      output_dir: "./benchmark_results"
-      context_size: [1024]
-      concurrency: [100]
-      num_prompts: [100]
-      output_len: [128]
-  
-  - name: "run-2"
-    serve:
-      model_path: "/path/to/model-b"
-      port: 8000
-      gpu_memory_utilization: 0.9
-      max_model_len: 12000
-      max_num_seqs: 256
-      dtype: "bfloat16"
-      disable_log_requests: true
-      enable_expert_parallel: true
-      tp_dp_pairs:
-        - tp: 2
-          dp: 4
-          pp: 1
-        - tp: 4
-          dp: 2
-          pp: 1
-    bench:
-      output_dir: "./benchmark_results_segment_B"
-      context_size: [1024, 2048]
-      concurrency: [100]
-      num_prompts: [100]
-      output_len: [128]
+```
+benchmark_results/
+├── my-benchmark_TP1_DP1_CTX512_C50_P100_O128.json
+├── my-benchmark_TP1_DP1_CTX512_C100_P100_O128.json
+├── my-benchmark_TP1_DP1_CTX1024_C50_P100_O128.json
+└── ...
 ```
 
-## Run Benchmark
-
-```bash
-# Using default config.yaml
-./run.sh
-
-# Using custom config (auto-resolves from runs/ folder)
-./run.sh my-config.yaml
-```
+Each JSON contains metrics like:
+- TTFT (Time to First Token)
+- TPOT (Time per Output Token)
+- ITL (Inter-Token Latency)
+- E2EL (End-to-End Latency)
+- Throughput (tokens/sec)
