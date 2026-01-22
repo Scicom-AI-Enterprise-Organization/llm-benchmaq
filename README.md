@@ -53,7 +53,7 @@ runs:
       num_prompts: [100]
       output_len: [128]
 ```
-### SgLang Benhmarking config format
+### SGLang Benhmarking config format
 ```bash
 # coming soon
 ```
@@ -72,6 +72,6 @@ runs:
 uv run python run.py <path/to/config.yaml>
 
 # example
-uv run python run.py config/my-benchmark.yaml
+uv run python run.py examples/config/multiple_models.yaml
 ```
 
