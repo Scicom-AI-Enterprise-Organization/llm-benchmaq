@@ -73,6 +73,31 @@ runs:
 uv run python run.py <path/to/config.yaml>
 
 # example
-uv run python run.py examples/config/multiple_models.yaml
+uv run python run.py examples/run_single.yaml
 ```
 
+## Remote Execution
+
+Run benchmarks on remote GPU servers locally. Add a `remote` section to your config:
+
+```yaml
+remote:
+  host: "gpu-server.example.com"
+  username: "ubuntu"
+  password: "your-password"
+  uv:
+    path: "~/.benchmark-venv"
+    python_version: "3.11"
+  dependencies:
+    - vllm==0.11.0
+    - pyyaml
+    - requests
+    - huggingface_hub
+
+runs:
+  - name: "remote-benchmark"
+    engine: "vllm"
+    # ... rest of config
+```
+
+See [examples/](./examples/) for more config samples.
