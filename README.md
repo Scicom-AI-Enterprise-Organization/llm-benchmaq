@@ -1,6 +1,6 @@
-# LLM Benchmarking
+# LLM Benchmaxxing
 
-Seamless scripts for LLM performance benchmarking.
+Seamless scripts for LLM performance benchmaxxing.
 
 ## Supported Engines
 
