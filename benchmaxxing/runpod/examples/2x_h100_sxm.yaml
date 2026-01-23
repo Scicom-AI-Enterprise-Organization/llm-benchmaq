@@ -1,0 +1,23 @@
+api_key: ""
+ssh_key: ""
+
+pod:
+  name: "benchmaxxing-2xh100-sxm"
+  gpu_type: "NVIDIA H100 80GB HBM3"
+  gpu_count: 4
+  instance_type: spot
+
+container:
+  image: "runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04"
+  disk_size: 200
+
+storage:
+  volume_size: 200
+  mount_path: "/workspace"
+
+ports:
+  http: [8888, 8000]
+  tcp: [22]
+
+env:
+  HF_HOME: "/workspace/hf_home"

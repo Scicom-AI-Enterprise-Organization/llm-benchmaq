@@ -14,9 +14,9 @@ setup(
     packages=find_packages(),
     python_requires=">=3.10",
     install_requires=[
-        # Core dependencies (for remote execution)
         "pyyaml",
         "requests",
+        "tqdm",
         "cloudpickle",
         "paramiko",
         "pyremote @ git+https://github.com/Scicom-AI-Enterprise-Organization/pyremote",
