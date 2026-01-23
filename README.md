@@ -42,7 +42,7 @@ benchmaxxing bench examples/2_run_multiple.yaml
 benchmaxxing bench examples/3_remote_gpu_ssh_password.yaml
 ```
 
-## 3. Benchmark Remotely on RunPod
+## 3. Benchmark Remotely on Runpod
 
 ### Deploy RunPod Instance
 
