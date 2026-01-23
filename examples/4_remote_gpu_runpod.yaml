@@ -1,0 +1,158 @@
+# =============================================================================
+# Remote Benchmark on RunPod
+# =============================================================================
+# Deploy a RunPod GPU instance and run benchmarks remotely.
+#
+# Usage:
+#   1. Deploy pod:  benchmaxxing runpod deploy examples/4_remote_gpu_runpod.yaml
+#   2. Run bench:   benchmaxxing bench examples/4_remote_gpu_runpod.yaml
+#   3. Delete pod:  benchmaxxing runpod delete examples/4_remote_gpu_runpod.yaml
+#
+
+## RunPod Configuration
+## -------------------------------------------------------------------------
+## Settings for deploying the RunPod GPU instance.
+## Ref: https://www.runpod.io/docs
+##
+runpod:
+  # -- RunPod API key (get from https://runpod.io/console/user/settings)
+  api_key: ""
+  # -- Path to SSH private key for pod access
+  ssh_key: "~/path/to/your/private/key"
+
+  ## Pod Configuration
+  ## -----------------------------------------------------------------------
+  pod:
+    # -- Unique name for this pod instance
+    name: "benchmaxxing-8xh100"
+    # -- GPU type to provision
+    # Options: "NVIDIA H100 80GB HBM3", "NVIDIA A100-SXM4-80GB", etc.
+    gpu_type: "NVIDIA A100-SXM4-80GB"
+    # -- Number of GPUs to allocate
+    gpu_count: 2
+    # -- Pricing model
+    # Options: "on_demand" (guaranteed), "spot" (preemptible, cheaper)
+    instance_type: on_demand
+    # -- Use secure cloud infrastructure
+    secure_cloud: true
+
+  ## Container Configuration
+  ## -----------------------------------------------------------------------
+  container:
+    # -- Docker image with CUDA support
+    image: "runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04"
+    # -- Container disk size in GB
+    disk_size: 200
+
+  ## Storage Configuration
+  ## -----------------------------------------------------------------------
+  storage:
+    # -- Persistent volume size in GB
+    volume_size: 200
+    # -- Mount path inside the container
+    mount_path: "/workspace"
+
+  ## Network Configuration
+  ## -----------------------------------------------------------------------
+  ports:
+    # -- HTTP ports (8888: Jupyter, 8000: vLLM server)
+    http: [8888, 8000]
+    # -- TCP ports (22: SSH)
+    tcp: [22]
+
+  ## Environment Variables
+  ## -----------------------------------------------------------------------
+  env:
+    # -- HuggingFace cache directory
+    HF_HOME: "/workspace/hf_home"
+
+## Remote Connection
+## -------------------------------------------------------------------------
+## SSH connection settings (filled after `runpod deploy`).
+##
+remote:
+  # -- Host IP address (from RunPod deploy output)
+  host: ""
+  # -- SSH port (from RunPod deploy output)
+  port: 22
+  # -- SSH username
+  username: "root"
+  # -- Path to SSH private key file
+  key_filename: "~/path/to/your/private/key"
+
+  ## Python Environment
+  ## -----------------------------------------------------------------------
+  uv:
+    # -- Path to virtual environment
+    path: "~/.benchmark-venv"
+    # -- Python version to use
+    python_version: "3.11"
+
+  ## Dependencies
+  ## -----------------------------------------------------------------------
+  dependencies:
+    - vllm==0.11.0
+    - pyyaml
+    - requests
+    - huggingface_hub
+
+## Benchmark Runs
+## -------------------------------------------------------------------------
+## Define benchmark runs to execute.
+##
+runs:
+  - # -- Unique name for this benchmark run
+    name: "qwen-3b-benchmark"
+    # -- Inference engine to use
+    engine: "vllm"
+
+    ## Model Download
+    ## ---------------------------------------------------------------------
+    ## Download model from HuggingFace before benchmarking.
+    ##
+    model:
+      # -- HuggingFace repository ID
+      repo_id: "Qwen/Qwen2.5-3B-Instruct"
+      # -- Local directory to store the model
+      local_dir: "/workspace/models/qwen-3b"
+
+    ## Server Configuration
+    ## -----------------------------------------------------------------------
+    serve:
+      # -- Model path on the remote server
+      model_path: "/workspace/models/qwen-3b"
+      # -- Server port
+      port: 8000
+      # -- GPU memory utilization (0.0-1.0)
+      gpu_memory_utilization: 0.9
+      # -- Maximum sequence length
+      max_model_len: 4096
+      # -- Maximum concurrent sequences
+      max_num_seqs: 256
+      # -- Data type for model weights
+      dtype: "bfloat16"
+      # -- Disable request logging
+      disable_log_requests: true
+
+      ## Parallelism Configurations
+      ## ---------------------------------------------------------------------
+      tp_dp_pairs:
+        - tp: 2    # Tensor parallelism
+          dp: 1    # Data parallelism
+          pp: 1    # Pipeline parallelism
+
+    ## Benchmark Configuration
+    ## -----------------------------------------------------------------------
+    bench:
+      # -- Save results to JSON files
+      save_results: true
+      # -- Output directory
+      output_dir: "/workspace/benchmark_results"
+      # -- Context sizes to test
+      context_size: [1024, 2048, 3000]
+      # -- Concurrency levels
+      concurrency: [50, 100]
+      # -- Number of prompts per test
+      num_prompts: [100]
+      # -- Output token lengths
+      output_len: [128]

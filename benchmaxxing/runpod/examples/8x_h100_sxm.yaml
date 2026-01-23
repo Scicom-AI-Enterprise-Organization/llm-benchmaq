@@ -1,24 +1,75 @@
-api_key: ""
-ssh_key: "~/.ssh/id_ed25519"
+# =============================================================================
+# RunPod Configuration - 8x H100 SXM
+# =============================================================================
+# This configuration deploys a RunPod instance with 8x NVIDIA H100 80GB GPUs.
+# Ideal for: Very large models, TP=8 benchmarks, maximum throughput testing.
+#
 
+## Authentication
+## -------------------------------------------------------------------------
+## Required credentials for RunPod API and SSH access.
+##
+# -- RunPod API key (get from https://runpod.io/console/user/settings)
+api_key: ""
+# -- Path to SSH private key for pod access
+ssh_key: "/path/to/your/private/key"
+
+## Pod Configuration
+## -------------------------------------------------------------------------
+## Core settings for the GPU pod instance.
+##
 pod:
+  # -- Unique name for this pod instance
   name: "benchmaxxing-8xh100-sxm"
+  # -- GPU type to provision
+  # Options: "NVIDIA H100 80GB HBM3", "NVIDIA A100-SXM4-80GB", "NVIDIA A100 80GB PCIe", etc.
   gpu_type: "NVIDIA H100 80GB HBM3"
+  # -- Number of GPUs to allocate
   gpu_count: 8
+  # -- Pricing model
+  # Options: "on_demand" (guaranteed availability, higher cost)
+  #          "spot" (preemptible, lower cost, may be interrupted)
   instance_type: spot
+  # -- Use secure cloud infrastructure
   secure_cloud: true
 
+## Container Configuration
+## -------------------------------------------------------------------------
+## Docker container settings for the pod.
+##
 container:
+  # -- Docker image to use
+  # Recommended: runpod/pytorch images with CUDA support
   image: "runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04"
-  disk_size: 20
+  # -- Container disk size in GB (for OS and temporary files)
+  disk_size: 200
 
+## Storage Configuration
+## -------------------------------------------------------------------------
+## Persistent storage that survives pod restarts.
+##
 storage:
+  # -- Persistent volume size in GB (for models, datasets, results)
   volume_size: 200
+  # -- Mount path inside the container
   mount_path: "/workspace"
 
+## Network Configuration
+## -------------------------------------------------------------------------
+## Ports to expose from the pod.
+##
 ports:
+  # -- HTTP ports (accessible via RunPod proxy)
+  # 8888: Jupyter, 8000: vLLM server
   http: [8888, 8000]
+  # -- TCP ports (direct access)
+  # 22: SSH
   tcp: [22]
 
+## Environment Variables
+## -------------------------------------------------------------------------
+## Environment variables set inside the container.
+##
 env:
+  # -- HuggingFace cache directory
   HF_HOME: "/workspace/hf_home"

@@ -1,17 +1,17 @@
 # =============================================================================
-# vLLM Benchmark Configuration - GPT-OSS 120B Session 1
+# Local Benchmark - Single Run
 # =============================================================================
-# Benchmark configuration for Scicom GPT-OSS 120B Malaysian Reasoning model.
-# Requires: 4x H100 80GB (TP=4) or equivalent.
+# Single benchmark run on a local GPU server.
+# Usage: benchmaxxing bench examples/1_run_single.yaml
 #
 
 ## Benchmark Runs
 ## -------------------------------------------------------------------------
-## Define one or more benchmark runs to execute.
+## Define benchmark runs to execute.
 ##
 runs:
   - # -- Unique name for this benchmark run
-    name: "gpt-oss-120b-run1"
+    name: "gpt-oss-120b-run"
     # -- Inference engine to use
     # Options: "vllm", "tensorrt-llm" (coming soon), "sglang" (coming soon)
     engine: "vllm"
@@ -22,7 +22,7 @@ runs:
     ##
     serve:
       # -- Model path (HuggingFace repo ID or local directory)
-      model_path: "Scicom-intl/gpt-oss-120b-Malaysian-Reasoning-SFT-v0.1"
+      model_path: "/root/gfs/01be5b33/gpt-oss-120b-Malaysian-Reasoning-SFT-v0.1"
       # -- Server port
       port: 8000
       # -- GPU memory utilization (0.0-1.0)
@@ -43,17 +43,11 @@ runs:
       ## Parallelism Configurations
       ## ---------------------------------------------------------------------
       ## List of TP/DP/PP configurations to benchmark.
-      ## Each configuration will be tested sequentially.
       ##
       tp_dp_pairs:
-        # -- Configuration 1: TP=4 across 4 GPUs
-        - tp: 4    # Tensor parallelism (split model layers across GPUs)
+        - tp: 8    # Tensor parallelism (split model layers across GPUs)
           dp: 1    # Data parallelism (replicate model for throughput)
           pp: 1    # Pipeline parallelism (split model stages)
-        # -- Configuration 2: Same config for comparison run
-        - tp: 4
-          dp: 1
-          pp: 1
 
     ## Benchmark Configuration
     ## -----------------------------------------------------------------------
@@ -61,6 +55,8 @@ runs:
     ## All combinations of these values will be tested.
     ##
     bench:
+      # -- Save results to JSON files
+      save_results: false
       # -- Output directory for benchmark results
       output_dir: "./benchmark_results"
       # -- Input context sizes to test (in tokens)

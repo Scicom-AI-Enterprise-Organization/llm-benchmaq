@@ -1,66 +1,83 @@
-# RunPod CLI
+# Runpod CLI
 
 Deploy and manage RunPod GPU pods.
 
-## Commands
-
-| Command | Description |
-|---------|-------------|
-| `deploy` | Create and start a new pod |
-| `delete` | Terminate and remove a pod |
-| `find` | Get pod info (status, IP, SSH) |
-| `start` | Resume a stopped pod |
-
 ## Usage
 
+### Deploy a Pod
+
+Create and start a new GPU pod on RunPod.
+
 ```bash
-# Deploy a new pod
 benchmaxxing runpod deploy config.yaml
+```
 
-# Get pod info
+Output:
+```
+Pod created: abc123xyz
+✓ Done!
+  SSH: ssh root@1.2.3.4 -p 12345 -i ~/.ssh/id_ed25519
+```
+
+### Get Pod Info
+
+Retrieve pod status, IP address, and SSH connection details.
+
+```bash
 benchmaxxing runpod find config.yaml
+```
 
-# Delete pod
-benchmaxxing runpod delete config.yaml
+Output:
+```
+Pod: my-pod (abc123xyz)
+  Status: RUNNING
+  SSH: ssh root@1.2.3.4 -p 12345 -i ~/.ssh/id_ed25519
+```
 
-# Start stopped pod
+### Start a Stopped Pod
+
+Resume a previously stopped pod without losing data.
+
+```bash
 benchmaxxing runpod start config.yaml
 ```
 
-## Config Format
+### Delete a Pod
 
-```yaml
-api_key: "your-runpod-api-key"
-ssh_key: "~/.ssh/id_ed25519"
+Terminate and remove a pod permanently.
 
-pod:
-  name: "my-pod"
-  gpu_type: "NVIDIA H100 80GB HBM3"
-  gpu_count: 2
-  instance_type: spot
-
-container:
-  image: "runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04"
-  disk_size: 20
-
-storage:
-  volume_size: 200
-  mount_path: "/workspace"
-
-ports:
-  http: [8888, 8000]
-  tcp: [22]
-
-env:
-  HF_HOME: "/workspace/hf_home"
+```bash
+benchmaxxing runpod delete config.yaml
 ```
 
-## Example Configs
+## Configuration
 
-| File | GPUs |
-|------|------|
-| `examples/2x_h100_sxm.yaml` | 2x H100 |
-| `examples/4x_h100_sxm.yaml` | 4x H100 |
-| `examples/8x_h100_sxm.yaml` | 8x H100 |
+```yaml
+runpod:
+  api_key: "your-api-key"                # RunPod API key
+  ssh_key: "~/.ssh/id_ed25519"           # Path to SSH private key
+  
+  pod:
+    name: "my-pod"                       # Pod name
+    gpu_type: "NVIDIA H100 80GB HBM3"    # GPU type
+    gpu_count: 2                         # Number of GPUs
+    instance_type: on_demand             # on_demand or spot
+    secure_cloud: true                   # Use secure cloud
+  
+  container:
+    image: "runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04"  # Docker image
+    disk_size: 200                       # Container disk size (GB)
+  
+  storage:
+    volume_size: 200                     # Persistent volume size (GB)
+    mount_path: "/workspace"             # Volume mount path
+  
+  ports:
+    http: [8888, 8000]                   # HTTP ports to expose
+    tcp: [22]                            # TCP ports to expose
+  
+  env:
+    HF_HOME: "/workspace/hf_home"        # Environment variables
+```
 
-See [examples/](./examples/) for more configs.
+See [examples/](../../examples/) for more.
