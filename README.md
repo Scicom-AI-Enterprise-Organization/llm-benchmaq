@@ -27,10 +27,6 @@ uv pip install "benchmaxxing @ git+https://github.com/Scicom-AI-Enterprise-Organ
 # Install with vllm
 uv pip install "benchmaxxing[vllm] @ git+https://github.com/Scicom-AI-Enterprise-Organization/llm-benchmaxxing.git"
 
-# Download model
-huggingface-cli download <huggingface_model_path> \
-  --local-dir /download/dir
-
 # single run
 benchmaxxing bench examples/1_run_single.yaml
 

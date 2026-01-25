@@ -1,114 +1,58 @@
-# =============================================================================
-# Local Benchmark - Multiple Runs
-# =============================================================================
-# Multiple benchmark runs on a local GPU server.
-# Each run is executed sequentially with its own configuration.
-# Usage: benchmaxxing bench examples/2_run_multiple.yaml
-#
-
-## Benchmark Runs
-## -------------------------------------------------------------------------
-## Define multiple benchmark runs to execute sequentially.
-##
 runs:
-  # =========================================================================
-  # Run 1: GPT-OSS 120B
-  # =========================================================================
-  - # -- Unique name for this benchmark run
-    name: "gpt-oss-120b-run"
-    # -- Inference engine to use
+  - name: "gpt-oss-120b-run"
     engine: "vllm"
 
-    ## Server Configuration
-    ## -----------------------------------------------------------------------
-    serve:
-      # -- Model path (local directory)
-      model_path: "/root/gfs/01be5b33/gpt-oss-120b-Malaysian-Reasoning-SFT-v0.1"
-      # -- Server port
+    model:
+      repo_id: "Scicom-intl/gpt-oss-120b-Malaysian-Reasoning-SFT-v0.1"
+
+    vllm_serve:
+      model_path: "Scicom-intl/gpt-oss-120b-Malaysian-Reasoning-SFT-v0.1"
       port: 8000
-      # -- GPU memory utilization (0.0-1.0)
       gpu_memory_utilization: 0.9
-      # -- Maximum sequence length
       max_model_len: 12000
-      # -- Maximum concurrent sequences
       max_num_seqs: 256
-      # -- Data type for model weights
       dtype: "bfloat16"
-      # -- Disable request logging
       disable_log_requests: true
-      # -- Enable expert parallelism (for MoE models)
       enable_expert_parallel: false
 
-      ## Parallelism Configurations
-      ## ---------------------------------------------------------------------
-      tp_dp_pairs:
-        - tp: 8    # Tensor parallelism
-          dp: 1    # Data parallelism
-          pp: 1    # Pipeline parallelism
+      parallelism_pairs:
+        - tensor_parallel: 8
+          data_parallel: 1
+          pipeline_parallel: 1
 
-    ## Benchmark Configuration
-    ## -----------------------------------------------------------------------
-    bench:
-      # -- Save results to JSON files
+    benchmark:
       save_results: false
-      # -- Output directory
       output_dir: "./benchmark_results"
-      # -- Context sizes to test
       context_size: [1024, 2048, 4096, 8192]
-      # -- Concurrency levels
       concurrency: [100]
-      # -- Number of prompts per test
       num_prompts: [100]
-      # -- Output token lengths
       output_len: [128]
 
-  # =========================================================================
-  # Run 2: Qwen3 235B MoE
-  # =========================================================================
-  - # -- Unique name for this benchmark run
-    name: "qwen-235b-run"
-    # -- Inference engine to use
+  - name: "qwen-235b-run"
     engine: "vllm"
 
-    ## Server Configuration
-    ## -----------------------------------------------------------------------
-    serve:
-      # -- Model path (local directory)
-      model_path: "/root/gfs/01be5b33/Qwen3-235B-A22B-Instruct-2507-Malaysian"
-      # -- Server port
+    model:
+      repo_id: "Qwen/Qwen3-235B-A22B-Instruct"
+
+    vllm_serve:
+      model_path: "Qwen/Qwen3-235B-A22B-Instruct"
       port: 8000
-      # -- GPU memory utilization (0.0-1.0)
       gpu_memory_utilization: 0.9
-      # -- Maximum sequence length
       max_model_len: 16000
-      # -- Maximum concurrent sequences
       max_num_seqs: 256
-      # -- Data type for model weights
       dtype: "bfloat16"
-      # -- Disable request logging
       disable_log_requests: true
-      # -- Enable expert parallelism (for MoE models)
       enable_expert_parallel: false
 
-      ## Parallelism Configurations
-      ## ---------------------------------------------------------------------
-      tp_dp_pairs:
-        - tp: 8    # Tensor parallelism
-          dp: 1    # Data parallelism
-          pp: 1    # Pipeline parallelism
+      parallelism_pairs:
+        - tensor_parallel: 8
+          data_parallel: 1
+          pipeline_parallel: 1
 
-    ## Benchmark Configuration
-    ## -----------------------------------------------------------------------
-    bench:
-      # -- Save results to JSON files
+    benchmark:
       save_results: false
-      # -- Output directory
       output_dir: "./benchmark_results"
-      # -- Context sizes to test
       context_size: [1024, 2048, 4096, 8192, 15000]
-      # -- Concurrency levels
       concurrency: [100]
-      # -- Number of prompts per test
       num_prompts: [100]
-      # -- Output token lengths
       output_len: [128]

@@ -27,15 +27,16 @@ def load_config(config_path: str) -> dict:
     instance_type = pod.get("instance_type", "spot")
     spot = instance_type == "spot"
     
-    ssh_key_path = runpod_cfg.get("ssh_key")
+    ssh_key_path = runpod_cfg.get("ssh_private_key")
     
     return {
-        "api_key": runpod_cfg.get("api_key"),
+        "api_key": runpod_cfg.get("runpod_api_key"),
         "ssh_key_path": ssh_key_path,
         "name": pod.get("name"),
         "gpu_type": pod.get("gpu_type"),
         "gpu_count": pod.get("gpu_count"),
         "spot": spot,
+        "bid_per_gpu": pod.get("bid_per_gpu"),
         "secure_cloud": pod.get("secure_cloud", True),
         "image": container.get("image"),
         "container_disk_size": container.get("disk_size", 20),

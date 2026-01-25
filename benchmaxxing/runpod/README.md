@@ -54,30 +54,25 @@ benchmaxxing runpod delete config.yaml
 
 ```yaml
 runpod:
-  api_key: "your-api-key"                # RunPod API key
-  ssh_key: "~/.ssh/id_ed25519"           # Path to SSH private key
-  
+  runpod_api_key: "" # or export RUNPOD_API_KEY
+  ssh_private_key: "/path/to/your/private/key"
   pod:
-    name: "my-pod"                       # Pod name
-    gpu_type: "NVIDIA H100 80GB HBM3"    # GPU type
-    gpu_count: 2                         # Number of GPUs
-    instance_type: on_demand             # on_demand or spot
-    secure_cloud: true                   # Use secure cloud
-  
+    name: "my-pod"
+    gpu_type: "NVIDIA H100 80GB HBM3" # https://docs.runpod.io/references/gpu-types#gpu-types
+    gpu_count: 2
+    instance_type: on_demand # (spot|on_demand)
+    secure_cloud: true
   container:
-    image: "runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04"  # Docker image
-    disk_size: 200                       # Container disk size (GB)
-  
+    image: "runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04" # docker image
+    disk_size: 200 # temporary storage (GB)
   storage:
-    volume_size: 200                     # Persistent volume size (GB)
-    mount_path: "/workspace"             # Volume mount path
-  
+    volume_size: 200 # persistent storage (GB)
+    mount_path: "/workspace"
   ports:
-    http: [8888, 8000]                   # HTTP ports to expose
-    tcp: [22]                            # TCP ports to expose
-  
+    http: [8888, 8000]
+    tcp: [22]
   env:
-    HF_HOME: "/workspace/hf_home"        # Environment variables
+    HF_HOME: "/workspace/hf_home" # HuggingFace cache directory
 ```
 
 See [examples/](../../examples/) for more.

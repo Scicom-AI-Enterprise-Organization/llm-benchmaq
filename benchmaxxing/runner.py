@@ -229,29 +229,29 @@ def run_remote(config: dict, remote_cfg: dict):
         for run_cfg in config.get("runs", []):
             name = run_cfg.get("name", "")
             model_cfg = run_cfg.get("model", {})
-            serve_cfg = run_cfg.get("serve", run_cfg)
-            bench_cfg = run_cfg.get("bench", run_cfg)
+            vllm_serve_cfg = run_cfg.get("vllm_serve", run_cfg)
+            benchmark_cfg = run_cfg.get("benchmark", run_cfg)
 
             # Download model if specified
             if model_cfg.get("repo_id") and model_cfg.get("local_dir"):
                 download_model(model_cfg["repo_id"], model_cfg["local_dir"])
 
-            model_path = serve_cfg.get("model_path", model_cfg.get("local_dir", ""))
-            port = serve_cfg.get("port", 8000)
-            gpu_memory_utilization = serve_cfg.get("gpu_memory_utilization", 0.9)
-            max_model_len = serve_cfg.get("max_model_len")
-            max_num_seqs = serve_cfg.get("max_num_seqs")
-            dtype = serve_cfg.get("dtype")
-            disable_log_requests = serve_cfg.get("disable_log_requests", False)
-            enable_expert_parallel = serve_cfg.get("enable_expert_parallel", False)
-            tp_dp_pairs = serve_cfg.get("tp_dp_pairs", [])
+            model_path = vllm_serve_cfg.get("model_path", model_cfg.get("local_dir", ""))
+            port = vllm_serve_cfg.get("port", 8000)
+            gpu_memory_utilization = vllm_serve_cfg.get("gpu_memory_utilization", 0.9)
+            max_model_len = vllm_serve_cfg.get("max_model_len")
+            max_num_seqs = vllm_serve_cfg.get("max_num_seqs")
+            dtype = vllm_serve_cfg.get("dtype")
+            disable_log_requests = vllm_serve_cfg.get("disable_log_requests", False)
+            enable_expert_parallel = vllm_serve_cfg.get("enable_expert_parallel", False)
+            parallelism_pairs = vllm_serve_cfg.get("parallelism_pairs", [])
 
-            output_dir = bench_cfg.get("output_dir", "./benchmark_results")
-            context_sizes = bench_cfg.get("context_size", [])
-            concurrencies = bench_cfg.get("concurrency", [])
-            num_prompts_list = bench_cfg.get("num_prompts", [])
-            output_lens = bench_cfg.get("output_len", [])
-            save_results = bench_cfg.get("save_results", False)
+            output_dir = benchmark_cfg.get("output_dir", "./benchmark_results")
+            context_sizes = benchmark_cfg.get("context_size", [])
+            concurrencies = benchmark_cfg.get("concurrency", [])
+            num_prompts_list = benchmark_cfg.get("num_prompts", [])
+            output_lens = benchmark_cfg.get("output_len", [])
+            save_results = benchmark_cfg.get("save_results", False)
 
             if not name or not model_path:
                 continue
@@ -259,10 +259,10 @@ def run_remote(config: dict, remote_cfg: dict):
             if save_results:
                 os.makedirs(output_dir, exist_ok=True)
 
-            for pair in tp_dp_pairs:
-                tp = pair.get("tp", 1)
-                dp = pair.get("dp", 1)
-                pp = pair.get("pp", 1)
+            for pair in parallelism_pairs:
+                tp = pair.get("tensor_parallel", 1)
+                dp = pair.get("data_parallel", 1)
+                pp = pair.get("pipeline_parallel", 1)
 
                 print()
                 print("=" * 64)

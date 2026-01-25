@@ -4,6 +4,7 @@ import subprocess
 from typing import Optional
 
 import runpod
+from runpod.api.graphql import run_graphql_query
 from tqdm import tqdm
 
 
@@ -15,6 +16,36 @@ def get_api_key() -> Optional[str]:
     return runpod.api_key or os.environ.get("RUNPOD_API_KEY")
 
 
+def _format_env_for_graphql(env: dict) -> str:
+    """Format env dict as GraphQL input array."""
+    if not env:
+        return "[]"
+    items = [f'{{key: "{k}", value: "{v}"}}' for k, v in env.items()]
+    return f"[{', '.join(items)}]"
+
+
+def get_minimum_bid_price(gpu_type: str, gpu_count: int = 1, secure_cloud: bool = True) -> Optional[float]:
+    """Query the current minimum bid price for a GPU type."""
+    query = f"""
+    query {{
+        gpuTypes(input: {{id: "{gpu_type}"}}) {{
+            id
+            lowestPrice(input: {{gpuCount: {gpu_count}, secureCloud: {str(secure_cloud).lower()}}}) {{
+                minimumBidPrice
+            }}
+        }}
+    }}
+    """
+    try:
+        result = run_graphql_query(query)
+        gpu_types = result.get("data", {}).get("gpuTypes", [])
+        if gpu_types and gpu_types[0].get("lowestPrice"):
+            return gpu_types[0]["lowestPrice"].get("minimumBidPrice")
+    except Exception as e:
+        print(f"Warning: Could not fetch minimum bid price: {e}")
+    return None
+
+
 def deploy(
     gpu_type: str,
     gpu_count: int,
@@ -24,6 +55,7 @@ def deploy(
     volume_mount_path: str = "/workspace",
     secure_cloud: bool = True,
     spot: bool = True,
+    bid_per_gpu: Optional[float] = None,
     env: Optional[dict] = None,
     name: Optional[str] = None,
     ports: Optional[str] = None,
@@ -44,21 +76,67 @@ def deploy(
     if name is None:
         name = f"{gpu_type}_{gpu_count}".replace(" ", "_")
     
-    cloud_type = "SECURE" if secure_cloud else "COMMUNITY"
+    cloud_type = "SECURE" if secure_cloud else "ALL"
+    env_graphql = _format_env_for_graphql(env)
     
-    pod = runpod.create_pod(
-        name=name,
-        image_name=image,
-        gpu_type_id=gpu_type,
-        gpu_count=gpu_count,
-        volume_in_gb=disk_size,
-        container_disk_in_gb=container_disk_size,
-        volume_mount_path=volume_mount_path,
-        ports=ports,
-        cloud_type=cloud_type,
-        support_public_ip=True,
-        env=env,
-    )
+    if spot:
+        # Use podRentInterruptable for spot instances
+        # Fetch minimum bid price if not specified
+        if bid_per_gpu is not None:
+            bid = bid_per_gpu
+        else:
+            bid = get_minimum_bid_price(gpu_type, gpu_count, secure_cloud)
+            if bid:
+                print(f"Using minimum bid price: ${bid}/GPU/hour")
+            else:
+                bid = 0.0  # Fallback to 0 if query fails
+        query = f"""
+        mutation {{
+            podRentInterruptable(input: {{
+                bidPerGpu: {bid},
+                cloudType: {cloud_type},
+                gpuCount: {gpu_count},
+                volumeInGb: {disk_size},
+                containerDiskInGb: {container_disk_size},
+                gpuTypeId: "{gpu_type}",
+                name: "{name}",
+                imageName: "{image}",
+                ports: "{ports}",
+                volumeMountPath: "{volume_mount_path}",
+                env: {env_graphql}
+            }}) {{
+                id
+                imageName
+                machineId
+            }}
+        }}
+        """
+        result = run_graphql_query(query)
+        pod = result["data"]["podRentInterruptable"]
+    else:
+        # Use podFindAndDeployOnDemand for on-demand instances
+        query = f"""
+        mutation {{
+            podFindAndDeployOnDemand(input: {{
+                cloudType: {cloud_type},
+                gpuCount: {gpu_count},
+                volumeInGb: {disk_size},
+                containerDiskInGb: {container_disk_size},
+                gpuTypeId: "{gpu_type}",
+                name: "{name}",
+                imageName: "{image}",
+                ports: "{ports}",
+                volumeMountPath: "{volume_mount_path}",
+                env: {env_graphql}
+            }}) {{
+                id
+                imageName
+                machineId
+            }}
+        }}
+        """
+        result = run_graphql_query(query)
+        pod = result["data"]["podFindAndDeployOnDemand"]
     
     pod_id = pod["id"]
     print(f"Pod created: {pod_id}")

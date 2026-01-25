@@ -1,69 +1,30 @@
-# =============================================================================
-# Local Benchmark - Single Run
-# =============================================================================
-# Single benchmark run on a local GPU server.
-# Usage: benchmaxxing bench examples/1_run_single.yaml
-#
-
-## Benchmark Runs
-## -------------------------------------------------------------------------
-## Define benchmark runs to execute.
-##
 runs:
-  - # -- Unique name for this benchmark run
-    name: "gpt-oss-120b-run"
-    # -- Inference engine to use
-    # Options: "vllm", "tensorrt-llm" (coming soon), "sglang" (coming soon)
+  - name: "gpt-oss-120b-run"
     engine: "vllm"
 
-    ## Server Configuration
-    ## -----------------------------------------------------------------------
-    ## Settings for the vLLM inference server.
-    ##
-    serve:
-      # -- Model path (HuggingFace repo ID or local directory)
-      model_path: "/root/gfs/01be5b33/gpt-oss-120b-Malaysian-Reasoning-SFT-v0.1"
-      # -- Server port
+    model:
+      repo_id: "Scicom-intl/gpt-oss-120b-Malaysian-Reasoning-SFT-v0.1"
+      # local_dir: "/path/to/model" # optional, uses HF_HOME if not set
+
+    vllm_serve:
+      model_path: "Scicom-intl/gpt-oss-120b-Malaysian-Reasoning-SFT-v0.1"
       port: 8000
-      # -- GPU memory utilization (0.0-1.0)
-      # Higher values allow larger batch sizes but risk OOM
       gpu_memory_utilization: 0.9
-      # -- Maximum sequence length (input + output tokens)
       max_model_len: 12000
-      # -- Maximum concurrent sequences
       max_num_seqs: 256
-      # -- Data type for model weights
-      # Options: "bfloat16", "float16", "auto"
       dtype: "bfloat16"
-      # -- Disable request logging for better performance
       disable_log_requests: true
-      # -- Enable expert parallelism (for Mixture of Experts models)
       enable_expert_parallel: false
 
-      ## Parallelism Configurations
-      ## ---------------------------------------------------------------------
-      ## List of TP/DP/PP configurations to benchmark.
-      ##
-      tp_dp_pairs:
-        - tp: 8    # Tensor parallelism (split model layers across GPUs)
-          dp: 1    # Data parallelism (replicate model for throughput)
-          pp: 1    # Pipeline parallelism (split model stages)
+      parallelism_pairs:
+        - tensor_parallel: 8
+          data_parallel: 1
+          pipeline_parallel: 1
 
-    ## Benchmark Configuration
-    ## -----------------------------------------------------------------------
-    ## Parameters for the benchmark test matrix.
-    ## All combinations of these values will be tested.
-    ##
-    bench:
-      # -- Save results to JSON files
+    benchmark:
       save_results: false
-      # -- Output directory for benchmark results
       output_dir: "./benchmark_results"
-      # -- Input context sizes to test (in tokens)
       context_size: [1024, 2048, 4096, 8192]
-      # -- Concurrency levels (number of concurrent requests)
       concurrency: [100]
-      # -- Number of prompts per benchmark run
       num_prompts: [100]
-      # -- Output token lengths to generate
       output_len: [128]

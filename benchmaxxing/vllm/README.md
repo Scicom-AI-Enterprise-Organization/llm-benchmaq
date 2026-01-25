@@ -31,27 +31,47 @@ benchmaxxing bench examples/2_run_multiple.yaml
 runs:
   - name: "my-benchmark"
     engine: "vllm"
-    serve:
-      model_path: "meta-llama/Llama-2-7b-hf"  # HuggingFace model or local path
-      port: 8000                               # Server port
-      gpu_memory_utilization: 0.9              # GPU memory usage (0.0-1.0)
-      max_model_len: 4096                      # Maximum sequence length
-      max_num_seqs: 256                        # Maximum concurrent sequences
-      dtype: "bfloat16"                        # Data type: bfloat16, float16, auto
-      disable_log_requests: true               # Disable request logging
-      enable_expert_parallel: false            # Expert parallelism for MoE models
-      tp_dp_pairs:                             # Parallelism configurations to test
-        - tp: 1                                # Tensor parallelism
-          dp: 1                                # Data parallelism
-          pp: 1                                # Pipeline parallelism
-    bench:
-      save_results: true                       # Save results to JSON
-      output_dir: "./results"                  # Output directory
-      context_size: [512, 1024]                # Input context sizes to test
-      concurrency: [50, 100]                   # Concurrency levels to test
-      num_prompts: [100]                       # Number of prompts per test
-      output_len: [128]                        # Output token lengths to test
+
+    model:
+      repo_id: "meta-llama/Llama-2-7b-hf"      # HuggingFace model repo
+      local_dir: "/path/to/model"              # optional, custom local path
+
+    vllm_serve:
+      model_path: "meta-llama/Llama-2-7b-hf"
+      port: 8000
+      gpu_memory_utilization: 0.9
+      max_model_len: 4096
+      max_num_seqs: 256
+      dtype: "bfloat16"
+      disable_log_requests: true
+      enable_expert_parallel: false
+      parallelism_pairs:
+        - tensor_parallel: 1
+          data_parallel: 1
+          pipeline_parallel: 1
+
+    benchmark:
+      save_results: true
+      output_dir: "./results"
+      context_size: [512, 1024]
+      concurrency: [50, 100]
+      num_prompts: [100]
+      output_len: [128]
 ```
+
+## Model Configuration
+
+The `model` section controls where models are downloaded/loaded from:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `repo_id` | Yes | HuggingFace model repository ID |
+| `local_dir` | No | Custom local path for model storage |
+
+**When to use `local_dir`:**
+
+- **Not needed** if you set `HF_HOME` environment variable (e.g., in RunPod config). Models will be cached automatically in `$HF_HOME/hub/`.
+- **Use it** when you need a specific path (e.g., shared storage, pre-downloaded models, or custom mount points).
 
 ## Output
 
