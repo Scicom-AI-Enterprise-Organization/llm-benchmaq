@@ -200,7 +200,7 @@ def run_remote(config: dict, remote_cfg: dict):
                 print(line, end='', flush=True)
             process.wait()
 
-        def download_model(repo_id, local_dir):
+        def download_model(repo_id, local_dir, hf_token=None):
             print()
             print("=" * 64)
             print(f"DOWNLOADING MODEL: {repo_id}")
@@ -209,11 +209,17 @@ def run_remote(config: dict, remote_cfg: dict):
             
             os.makedirs(local_dir, exist_ok=True)
             
+            # Set HF_TOKEN if provided (config takes priority over env)
+            env = os.environ.copy()
+            token = hf_token or os.environ.get("HF_TOKEN")
+            if token:
+                env["HF_TOKEN"] = token
+            
             cmd = ["huggingface-cli", "download", repo_id, "--local-dir", local_dir]
             print(f"Running: {' '.join(cmd)}")
             sys.stdout.flush()
             
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, env=env)
             for line in process.stdout:
                 print(line, end='', flush=True)
             process.wait()
@@ -232,9 +238,14 @@ def run_remote(config: dict, remote_cfg: dict):
             vllm_serve_cfg = run_cfg.get("vllm_serve", run_cfg)
             benchmark_cfg = run_cfg.get("benchmark", run_cfg)
 
+            # Set HF_TOKEN for gated models (config takes priority over env)
+            hf_token = model_cfg.get("hf_token") or config.get("hf_token")
+            if hf_token:
+                os.environ["HF_TOKEN"] = hf_token
+
             # Download model if specified
             if model_cfg.get("repo_id") and model_cfg.get("local_dir"):
-                download_model(model_cfg["repo_id"], model_cfg["local_dir"])
+                download_model(model_cfg["repo_id"], model_cfg["local_dir"], hf_token)
 
             model_path = vllm_serve_cfg.get("model_path", model_cfg.get("local_dir", ""))
             port = vllm_serve_cfg.get("port", 8000)

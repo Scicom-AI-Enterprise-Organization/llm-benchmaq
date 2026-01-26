@@ -8,9 +8,15 @@ def run(config: dict):
     """Run vLLM benchmarks based on config."""
     for run_cfg in config.get("runs", []):
         name = run_cfg.get("name", "")
+        model_cfg = run_cfg.get("model", {})
 
         vllm_serve_cfg = run_cfg.get("vllm_serve", run_cfg)
         benchmark_cfg = run_cfg.get("benchmark", run_cfg)
+
+        # Set HF_TOKEN for gated models (config takes priority over env)
+        hf_token = model_cfg.get("hf_token") or config.get("hf_token")
+        if hf_token:
+            os.environ["HF_TOKEN"] = hf_token
 
         # Server options
         model_path = vllm_serve_cfg.get("model_path", "")
