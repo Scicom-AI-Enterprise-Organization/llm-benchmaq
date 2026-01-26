@@ -103,6 +103,7 @@ def deploy(
                 imageName: "{image}",
                 ports: "{ports}",
                 volumeMountPath: "{volume_mount_path}",
+                startSsh: true,
                 env: {env_graphql}
             }}) {{
                 id
@@ -127,6 +128,7 @@ def deploy(
                 imageName: "{image}",
                 ports: "{ports}",
                 volumeMountPath: "{volume_mount_path}",
+                startSsh: true,
                 env: {env_graphql}
             }}) {{
                 id
