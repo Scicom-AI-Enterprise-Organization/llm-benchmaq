@@ -43,6 +43,7 @@ runs:
     model:
       repo_id: "Qwen/Qwen2.5-3B-Instruct"
       local_dir: "/workspace/models/qwen-3b" # optional, uses HF_HOME if not set
+      hf_token: "" # or export HF_TOKEN
 
     vllm_serve:
       model_path: "Qwen/Qwen2.5-3B-Instruct"
