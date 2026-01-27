@@ -441,18 +441,33 @@ def run_remote(config: dict, remote_cfg: dict):
     print("=" * 64)
 
 
-def run(config_path: str):
-    """Main entry point for running benchmarks."""
-    if not os.path.isabs(config_path):
-        config_path = os.path.abspath(config_path)
+def run(config_or_path):
+    """
+    Main entry point for running benchmarks.
+    
+    Args:
+        config_or_path: Either a config dict or a path to a YAML config file
+        
+    Returns:
+        Dict with status and results
+    """
+    from typing import Union
+    
+    # Handle both dict and string (path) inputs
+    if isinstance(config_or_path, dict):
+        config = config_or_path
+    else:
+        config_path = config_or_path
+        if not os.path.isabs(config_path):
+            config_path = os.path.abspath(config_path)
 
-    if not os.path.exists(config_path):
-        print(f"Error: Config file not found: {config_path}")
-        sys.exit(1)
+        if not os.path.exists(config_path):
+            print(f"Error: Config file not found: {config_path}")
+            sys.exit(1)
 
-    print(f"Loading config: {config_path}")
-    with open(config_path) as f:
-        config = yaml.safe_load(f)
+        print(f"Loading config: {config_path}")
+        with open(config_path) as f:
+            config = yaml.safe_load(f)
 
     runs = config.get("runs", [])
     if not runs:
@@ -475,10 +490,11 @@ def run(config_path: str):
         print("REMOTE EXECUTION ENABLED")
         print("=" * 64)
         run_remote(config, remote_cfg)
+        return {"status": "success", "mode": "remote"}
     else:
         # Import from benchmaxxing.vllm instead of vllm
         engine_module = importlib.import_module(f"benchmaxxing.{engine}")
-        engine_module.run(config)
+        return engine_module.run(config)
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as f:
 
 setup(
     name="benchmaxxing",
-    version="0.2.0",
+    version="0.3.0",
     author="Scicom AI Enterprise",
     description="Seamless scripts for LLM performance benchmarking",
     long_description=long_description,
