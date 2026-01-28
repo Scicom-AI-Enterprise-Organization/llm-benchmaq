@@ -2,6 +2,50 @@
 
 Seamless scripts for LLM performance benchmarking, written in Northern Malaysia slang, with end 'k' sounds replaced by a 'q' sound.
 
+## Features
+
+- Seamless remote benchmarking over SSH
+  - Automatic venv/setup, upload model, install dependencies, start server and run benchmarks on a remote GPU host.
+
+- End-to-end RunPod integration
+  - Deploy, bench and cleanup RunPod instances from CLI or Python API; supports API key, ports and SSH access.
+
+- CLI and Python API
+  - `benchmaq` CLI for quick runs and a programmatic `benchmaq.bench(...)` Python API for automation.
+
+- Multi-engine architecture
+  - vLLM supported today; additional engines (e.g., TensorRT-LLM, SGLang) planned for future releases.
+
+- Flexible YAML config format with examples
+  - Single-run and multi-run configs, run-level overrides, remote and runpod sections.
+
+- Parameter sweeps and combinatorial runs
+  - Sweep tensor/pipeline/data parallelism (TP/PP/DP), context sizes, concurrency, number of prompts, output lengths, etc.
+
+- Serve-mode benchmarking
+  - Benchmark against a running inference server (host/port/endpoint) instead of starting a server each run.
+
+- Detailed metrics and structured outputs
+  - Metrics include TTFT, TPOT, ITL, E2EL and throughput. Results saved as JSON (and optionally text) with descriptive filenames in configurable output_dir.
+
+- Multiprocessing support
+  - Module-level entrypoints support Python multiprocessing for parallel benchmark execution.
+
+- Environment & dependency management
+  - Uses uv for virtualenv management; can install specified dependencies locally or on the remote host.
+
+- Authentication & model access
+  - SSH password/key support for remote hosts and Hugging Face token support for gated models.
+
+- RunPod management utilities
+  - `benchmaq runpod` CLI and Python client to deploy, find, start, stop and delete pods; list and query pods programmatically.
+
+- Advanced runtime tuning
+  - Control dtype, GPU memory utilization, max model length/num sequences, disable logging, enable expert parallel, and set parallelism pairs.
+
+- Extensible & reproducible
+  - Modular engine-specific code (benchmaq.vllm), reproducible output naming conventions and configurable save_results/output_dir options.
+
 ## Supported Engines
 
 - [x] [vLLM](./benchmaq/vllm/) - vLLM inference server
@@ -9,6 +53,8 @@ Seamless scripts for LLM performance benchmarking, written in Northern Malaysia 
 - [ ] SGLang - *(coming soon)*
 
 ## Installation
+
+Easily using UV,
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
