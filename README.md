@@ -4,47 +4,18 @@ Seamless scripts for LLM performance benchmarking, written in Northern Malaysia 
 
 ## Features
 
-- Seamless remote benchmarking over SSH
-  - Automatic venv/setup, upload model, install dependencies, start server and run benchmarks on a remote GPU host.
-
-- End-to-end RunPod integration
-  - Deploy, bench and cleanup RunPod instances from CLI or Python API; supports API key, ports and SSH access.
-
-- CLI and Python API
-  - `benchmaq` CLI for quick runs and a programmatic `benchmaq.bench(...)` Python API for automation.
-
-- Multi-engine architecture
-  - vLLM supported today; additional engines (e.g., TensorRT-LLM, SGLang) planned for future releases.
-
-- Flexible YAML config format with examples
-  - Single-run and multi-run configs, run-level overrides, remote and runpod sections.
-
-- Parameter sweeps and combinatorial runs
-  - Sweep tensor/pipeline/data parallelism (TP/PP/DP), context sizes, concurrency, number of prompts, output lengths, etc.
-
-- Serve-mode benchmarking
-  - Benchmark against a running inference server (host/port/endpoint) instead of starting a server each run.
-
-- Detailed metrics and structured outputs
-  - Metrics include TTFT, TPOT, ITL, E2EL and throughput. Results saved as JSON (and optionally text) with descriptive filenames in configurable output_dir.
-
-- Multiprocessing support
-  - Module-level entrypoints support Python multiprocessing for parallel benchmark execution.
-
-- Environment & dependency management
-  - Uses uv for virtualenv management; can install specified dependencies locally or on the remote host.
-
-- Authentication & model access
-  - SSH password/key support for remote hosts and Hugging Face token support for gated models.
-
-- RunPod management utilities
-  - `benchmaq runpod` CLI and Python client to deploy, find, start, stop and delete pods; list and query pods programmatically.
-
-- Advanced runtime tuning
-  - Control dtype, GPU memory utilization, max model length/num sequences, disable logging, enable expert parallel, and set parallelism pairs.
-
-- Extensible & reproducible
-  - Modular engine-specific code (benchmaq.vllm), reproducible output naming conventions and configurable save_results/output_dir options.
+1. Seamless remote benchmarking over SSH, automatic venv/setup, upload model, install dependencies, start server and run benchmarks on a remote GPU host, special thanks to [Scicom-AI-Enterprise-Organization/pyremote](https://github.com/Scicom-AI-Enterprise-Organization/pyremote)
+2. End-to-end RunPod integration, deploy, bench and cleanup RunPod instances from CLI or Python API; supports API key, ports and SSH access.
+3. CLI and Python API, `benchmaq` CLI for quick runs and a programmatic `benchmaq.bench(...)` Python API for automation.
+4. Multi-engine architecture, vLLM supported today; additional engines (e.g., TensorRT-LLM, SGLang) planned for future releases.
+5. Flexible YAML config format with examples, single-run and multi-run configs, run-level overrides, remote and runpod sections.
+6. Parameter sweeps and combinatorial runs, sweep tensor/pipeline/data parallelism (TP/PP/DP), context sizes, concurrency, number of prompts, output lengths, etc.
+7. Serve-mode benchmarking, benchmark against a running inference server (host/port/endpoint) instead of starting a server each run.
+8. Detailed metrics and structured outputs, we use `vllm server bench` to generate metrics include TTFT, TPOT, ITL, E2EL and throughput. Results saved as JSON.
+9. Environment & dependency management, uses uv for virtualenv management; can install specified dependencies locally or on the remote host.
+10. Authentication & model access, SSH password/key support for remote hosts and HuggingFace token support for gated models.
+11. RunPod management utilities, `benchmaq runpod` CLI and Python client to deploy, find, start, stop and delete pods; list and query pods programmatically.
+12. Advanced runtime tuning, control dtype, GPU memory utilization, max model length/num sequences, disable logging, enable expert parallel, and set parallelism pairs.
 
 ## Supported Engines
 
