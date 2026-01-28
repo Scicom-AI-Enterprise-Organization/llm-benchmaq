@@ -1,4 +1,4 @@
-# Benchmaxxing
+# Benchmaq
 
 Seamless scripts for LLM performance benchmaq.
 
@@ -106,3 +106,9 @@ with Pool(processes=len(configs)) as pool:
 ## Config Format
 
 See [examples/](./examples/) for more config samples.
+
+## Unit & Integration Test
+
+```
+uv run python -m pytest tests/ -v -s
+```
