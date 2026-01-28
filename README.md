@@ -11,7 +11,7 @@ Seamless scripts for LLM performance benchmarking, written in Northern Malaysia 
 5. Flexible YAML config format with examples, single-run and multi-run configs, run-level overrides, remote and runpod sections.
 6. Parameter sweeps and combinatorial runs, sweep tensor/pipeline/data parallelism (TP/PP/DP), context sizes, concurrency, number of prompts, output lengths, etc.
 7. Serve-mode benchmarking, benchmark against a running inference server (host/port/endpoint) instead of starting a server each run.
-8. Detailed metrics and structured outputs, we use `vllm server bench` to generate metrics include TTFT, TPOT, ITL, E2EL and throughput. Results saved as JSON.
+8. Detailed metrics and structured outputs, we use `vllm bench serve` to generate metrics include TTFT, TPOT, ITL, E2EL and throughput. Results saved as JSON.
 9. Environment & dependency management, uses uv for virtualenv management; can install specified dependencies locally or on the remote host.
 10. Authentication & model access, SSH password/key support for remote hosts and HuggingFace token support for gated models.
 11. RunPod management utilities, `benchmaq runpod` CLI and Python client to deploy, find, start, stop and delete pods; list and query pods programmatically.
