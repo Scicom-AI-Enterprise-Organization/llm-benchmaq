@@ -1,6 +1,6 @@
-# Benchmaq
+# LLM-Benchmaq
 
-Seamless scripts for LLM performance benchmaq.
+Seamless scripts for LLM performance benchmarking, written in Northern Malaysia slang, with end 'k' sounds replaced by a 'q' sound.
 
 ## Supported Engines
 
