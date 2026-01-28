@@ -1,22 +1,4 @@
-"""
-vLLM benchmarking module.
-
-Low-level access to vLLM server and benchmark functions.
-
-Usage:
-    import benchmaxxing
-    
-    # High-level bench function
-    result = benchmaxxing.vllm.bench(
-        model_path="meta-llama/Llama-3.1-8B-Instruct",
-        tensor_parallel=2,
-        context_sizes=[1024, 2048],
-    )
-    
-    # Low-level server access
-    with benchmaxxing.vllm.VLLMServer(model_path="...", port=8000, tp=2, dp=1, pp=1) as server:
-        benchmaxxing.vllm.run_benchmark(...)
-"""
+"""vLLM benchmarking module."""
 
 import os
 import time
@@ -26,27 +8,19 @@ from .core import VLLMServer, run_benchmark
 
 
 def run(config: dict) -> Dict[str, Any]:
-    """
-    Run vLLM benchmarks based on config dict.
-    
-    Returns:
-        Dict with status and results
-    """
+    """Run vLLM benchmarks based on config dict."""
     results = []
-    
+
     for run_cfg in config.get("runs", []):
         name = run_cfg.get("name", "")
         model_cfg = run_cfg.get("model", {})
-
         vllm_serve_cfg = run_cfg.get("vllm_serve", run_cfg)
         benchmark_cfg = run_cfg.get("benchmark", run_cfg)
 
-        # Set HF_TOKEN for gated models (config takes priority over env)
         hf_token = model_cfg.get("hf_token") or config.get("hf_token")
         if hf_token:
             os.environ["HF_TOKEN"] = hf_token
 
-        # Server options
         model_path = vllm_serve_cfg.get("model_path", "")
         port = vllm_serve_cfg.get("port", 8000)
         gpu_memory_utilization = vllm_serve_cfg.get("gpu_memory_utilization", 0.9)
@@ -57,7 +31,6 @@ def run(config: dict) -> Dict[str, Any]:
         enable_expert_parallel = vllm_serve_cfg.get("enable_expert_parallel", False)
         parallelism_pairs = vllm_serve_cfg.get("parallelism_pairs", [])
 
-        # Benchmark options
         output_dir = benchmark_cfg.get("output_dir", "./benchmark_results")
         context_sizes = benchmark_cfg.get("context_size", [])
         concurrencies = benchmark_cfg.get("concurrency", [])
@@ -101,18 +74,13 @@ def run(config: dict) -> Dict[str, Any]:
                                     save_results=save_results
                                 )
                                 results.append({
-                                    "name": result_name,
-                                    "tp": tp,
-                                    "dp": dp,
-                                    "pp": pp,
-                                    "ctx": ctx,
-                                    "concurrency": concurrency,
-                                    "num_prompts": num_prompts,
-                                    "output_len": output_len,
+                                    "name": result_name, "tp": tp, "dp": dp, "pp": pp,
+                                    "ctx": ctx, "concurrency": concurrency,
+                                    "num_prompts": num_prompts, "output_len": output_len,
                                 })
 
             time.sleep(5)
-    
+
     return {"status": "success", "results": results}
 
 
@@ -141,74 +109,29 @@ def bench(
     save_results: bool = False,
     **kwargs,
 ) -> Dict[str, Any]:
-    """
-    Run vLLM benchmarks with kwargs or config file.
-    
-    Args:
-        config_path: Path to YAML config file (optional)
-        name: Benchmark run name
-        model_path: Path or HuggingFace model ID
-        hf_token: HuggingFace token for gated models
-        port: vLLM server port
-        tensor_parallel: Tensor parallel size
-        data_parallel: Data parallel size
-        pipeline_parallel: Pipeline parallel size
-        parallelism_pairs: List of parallelism configs to try
-        gpu_memory_utilization: GPU memory fraction to use
-        max_model_len: Maximum model context length
-        max_num_seqs: Maximum concurrent sequences
-        dtype: Model dtype (auto, float16, bfloat16)
-        disable_log_requests: Disable vLLM request logging
-        enable_expert_parallel: Enable expert parallelism for MoE
-        context_sizes: List of input context sizes to benchmark
-        concurrency: List of concurrency levels to benchmark
-        num_prompts: List of prompt counts to benchmark
-        output_len: List of output lengths to benchmark
-        output_dir: Directory for benchmark results
-        save_results: Whether to save results to files
-        
-    Returns:
-        Dict with benchmark results and status
-    """
+    """Run vLLM benchmarks with kwargs or config file."""
     from ..config import load_config, merge_config, kwargs_to_run_config
-    
-    # Build config from file and/or kwargs
+
     config = {}
-    
     if config_path:
         config = load_config(config_path)
-    
-    # Build kwargs config if model_path provided
+
     if model_path:
         kwargs_config = kwargs_to_run_config(
-            name=name,
-            model_path=model_path,
-            hf_token=hf_token,
-            port=port,
-            tensor_parallel=tensor_parallel,
-            data_parallel=data_parallel,
-            pipeline_parallel=pipeline_parallel,
-            parallelism_pairs=parallelism_pairs,
-            gpu_memory_utilization=gpu_memory_utilization,
-            max_model_len=max_model_len,
-            max_num_seqs=max_num_seqs,
-            dtype=dtype,
-            disable_log_requests=disable_log_requests,
-            enable_expert_parallel=enable_expert_parallel,
-            context_sizes=context_sizes or [1024],
-            concurrency=concurrency or [50],
-            num_prompts=num_prompts or [100],
-            output_len=output_len or [128],
-            output_dir=output_dir,
-            save_results=save_results,
+            name=name, model_path=model_path, hf_token=hf_token, port=port,
+            tensor_parallel=tensor_parallel, data_parallel=data_parallel, pipeline_parallel=pipeline_parallel,
+            parallelism_pairs=parallelism_pairs, gpu_memory_utilization=gpu_memory_utilization,
+            max_model_len=max_model_len, max_num_seqs=max_num_seqs, dtype=dtype,
+            disable_log_requests=disable_log_requests, enable_expert_parallel=enable_expert_parallel,
+            context_sizes=context_sizes or [1024], concurrency=concurrency or [50],
+            num_prompts=num_prompts or [100], output_len=output_len or [128],
+            output_dir=output_dir, save_results=save_results,
         )
         config = merge_config(config, kwargs_config)
-    
-    # Validate
+
     if not config.get("runs"):
         raise ValueError("No benchmark runs defined. Provide model_path or config file with 'runs' section.")
-    
-    # Run benchmark
+
     try:
         return run(config)
     except Exception as e:

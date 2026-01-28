@@ -7,7 +7,7 @@ from .runner import run, run_e2e
 
 
 def main():
-    parser = argparse.ArgumentParser(prog="benchmaxxing", description="LLM benchmarking toolkit")
+    parser = argparse.ArgumentParser(prog="benchmaq", description="LLM benchmarking toolkit")
     subparsers = parser.add_subparsers(dest="command")
 
     # benchmark command

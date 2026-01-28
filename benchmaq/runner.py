@@ -655,15 +655,15 @@ def run(config_or_path):
         
         return {"status": "success", "mode": "remote", "host": remote_cfg.get("host")}
     else:
-        # Import from benchmaxxing.vllm instead of vllm
-        engine_module = importlib.import_module(f"benchmaxxing.{engine}")
+        # Import from benchmaq.vllm instead of vllm
+        engine_module = importlib.import_module(f"benchmaq.{engine}")
         return engine_module.run(config)
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python -m benchmaxxing.runner <config.yaml>")
-        print("Example: python -m benchmaxxing.runner examples/run_single.yaml")
+    print("Usage: python -m benchmaq.runner <config.yaml>")
+    print("Example: python -m benchmaq.runner examples/run_single.yaml")
         sys.exit(1)
     
     run(sys.argv[1])
