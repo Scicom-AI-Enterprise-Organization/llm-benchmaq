@@ -84,10 +84,10 @@ def find_by_name(api_key: Optional[str] = None, *, name: str) -> Optional[Dict[s
     return _find_by_name(name)
 
 
-def start(api_key: Optional[str] = None, *, pod_id: str) -> Dict[str, Any]:
+def start(api_key: Optional[str] = None, *, pod_id: str, gpu_count: int = 1) -> Dict[str, Any]:
     """Start a stopped pod."""
     _ensure_api_key(api_key)
-    return _start(pod_id)
+    return _start(pod_id, gpu_count=gpu_count)
 
 
 def stop(api_key: Optional[str] = None, *, pod_id: str) -> Dict[str, Any]:

@@ -214,8 +214,8 @@ def find_by_name(name: str) -> Optional[dict]:
     return None
 
 
-def start(pod_id: str) -> dict:
-    return runpod.resume_pod(pod_id)
+def start(pod_id: str, gpu_count: int = 1) -> dict:
+    return runpod.resume_pod(pod_id, gpu_count=gpu_count)
 
 
 def stop(pod_id: str) -> dict:

@@ -662,8 +662,8 @@ def run(config_or_path):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-    print("Usage: python -m benchmaq.runner <config.yaml>")
-    print("Example: python -m benchmaq.runner examples/run_single.yaml")
+        print("Usage: python -m benchmaq.runner <config.yaml>")
+        print("Example: python -m benchmaq.runner examples/run_single.yaml")
         sys.exit(1)
     
     run(sys.argv[1])

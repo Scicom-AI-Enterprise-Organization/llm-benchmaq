@@ -34,6 +34,12 @@ setup(
             "vllm==0.11.0",
             "huggingface_hub[cli]",
         ],
+        # Development/testing dependencies
+        "dev": [
+            "pytest>=7.0.0",
+            "pytest-mock>=3.10.0",
+            "python-dotenv>=1.0.0",
+        ],
     },
     entry_points={
         "console_scripts": [
