@@ -333,7 +333,8 @@ def run_remote(config: dict, remote_cfg: dict):
             def __init__(self, model_path, port, tp, dp, pp,
                          gpu_memory_utilization=0.9, max_model_len=None,
                          max_num_seqs=None, dtype=None,
-                         disable_log_requests=False, enable_expert_parallel=False):
+                         disable_log_requests=False, enable_expert_parallel=False,
+                         extra_args=None):
                 self.model_path = model_path
                 self.port = port
                 self.tp = tp
@@ -345,6 +346,7 @@ def run_remote(config: dict, remote_cfg: dict):
                 self.dtype = dtype
                 self.disable_log_requests = disable_log_requests
                 self.enable_expert_parallel = enable_expert_parallel
+                self.extra_args = extra_args or {}
                 self.process = None
                 self.base_url = f"http://localhost:{port}"
 
@@ -368,6 +370,16 @@ def run_remote(config: dict, remote_cfg: dict):
                     cmd.append("--disable-log-requests")
                 if self.enable_expert_parallel:
                     cmd.append("--enable-expert-parallel")
+
+                # Add extra_args from config
+                for key, value in self.extra_args.items():
+                    flag = f"--{key}"
+                    if isinstance(value, bool):
+                        if value:
+                            cmd.append(flag)
+                        # For false booleans, don't add anything (use no- prefix in key if needed)
+                    else:
+                        cmd.extend([flag, str(value)])
 
                 print(f"Starting vLLM server: {' '.join(cmd)}")
                 sys.stdout.flush()
@@ -529,6 +541,7 @@ def run_remote(config: dict, remote_cfg: dict):
             disable_log_requests = vllm_serve_cfg.get("disable_log_requests", False)
             enable_expert_parallel = vllm_serve_cfg.get("enable_expert_parallel", False)
             parallelism_pairs = vllm_serve_cfg.get("parallelism_pairs", [])
+            extra_args = vllm_serve_cfg.get("extra_args", {})
 
             output_dir = benchmark_cfg.get("output_dir", "./benchmark_results")
             context_sizes = benchmark_cfg.get("context_size", [])
@@ -561,7 +574,8 @@ def run_remote(config: dict, remote_cfg: dict):
                     max_num_seqs=max_num_seqs,
                     dtype=dtype,
                     disable_log_requests=disable_log_requests,
-                    enable_expert_parallel=enable_expert_parallel
+                    enable_expert_parallel=enable_expert_parallel,
+                    extra_args=extra_args
                 ) as server:
                     for ctx in context_sizes:
                         for concurrency in concurrencies:

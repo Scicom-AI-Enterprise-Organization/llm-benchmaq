@@ -13,7 +13,8 @@ class VLLMServer:
                  max_num_seqs=None,
                  dtype=None,
                  disable_log_requests=False,
-                 enable_expert_parallel=False):
+                 enable_expert_parallel=False,
+                 extra_args=None):
         self.model_path = model_path
         self.port = port
         self.tp = tp
@@ -25,6 +26,7 @@ class VLLMServer:
         self.dtype = dtype
         self.disable_log_requests = disable_log_requests
         self.enable_expert_parallel = enable_expert_parallel
+        self.extra_args = extra_args or {}
         self.process = None
         self.base_url = f"http://localhost:{port}"
 
@@ -50,6 +52,16 @@ class VLLMServer:
             cmd.append("--disable-log-requests")
         if self.enable_expert_parallel:
             cmd.append("--enable-expert-parallel")
+
+        # Add extra_args from config
+        for key, value in self.extra_args.items():
+            flag = f"--{key}"
+            if isinstance(value, bool):
+                if value:
+                    cmd.append(flag)
+                # For false booleans, don't add anything (use no- prefix in key if needed)
+            else:
+                cmd.extend([flag, str(value)])
 
         print(f"Starting vLLM server: {' '.join(cmd)}")
         self.process = subprocess.Popen(cmd, text=True)

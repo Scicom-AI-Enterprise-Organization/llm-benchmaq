@@ -30,6 +30,7 @@ def run(config: dict) -> Dict[str, Any]:
         disable_log_requests = vllm_serve_cfg.get("disable_log_requests", False)
         enable_expert_parallel = vllm_serve_cfg.get("enable_expert_parallel", False)
         parallelism_pairs = vllm_serve_cfg.get("parallelism_pairs", [])
+        extra_args = vllm_serve_cfg.get("extra_args", {})
 
         output_dir = benchmark_cfg.get("output_dir", "./benchmark_results")
         context_sizes = benchmark_cfg.get("context_size", [])
@@ -61,7 +62,8 @@ def run(config: dict) -> Dict[str, Any]:
                 max_num_seqs=max_num_seqs,
                 dtype=dtype,
                 disable_log_requests=disable_log_requests,
-                enable_expert_parallel=enable_expert_parallel
+                enable_expert_parallel=enable_expert_parallel,
+                extra_args=extra_args
             ) as server:
                 for ctx in context_sizes:
                     for concurrency in concurrencies:

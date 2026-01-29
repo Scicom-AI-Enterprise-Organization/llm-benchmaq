@@ -17,6 +17,12 @@ runs:
       disable_log_requests: true
       enable_expert_parallel: false
 
+      # Extra args passed directly to vllm serve (optional)
+      # extra_args:
+      #   no-flashinfer: true           # becomes --no-flashinfer
+      #   enable-chunked-prefill: true  # becomes --enable-chunked-prefill
+      #   quantization: "awq"           # becomes --quantization awq
+
       parallelism_pairs:
         - tensor_parallel: 8
           data_parallel: 1
