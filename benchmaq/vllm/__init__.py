@@ -89,6 +89,41 @@ def run(config: dict) -> Dict[str, Any]:
     return {"status": "success", "results": results}
 
 
+def _download_model(repo_id: str, local_dir: str, hf_token: Optional[str] = None):
+    """Download model from HuggingFace Hub."""
+    import subprocess
+    
+    print()
+    print("=" * 64)
+    print(f"DOWNLOADING MODEL: {repo_id}")
+    print(f"Destination: {local_dir}")
+    print("=" * 64)
+    
+    os.makedirs(local_dir, exist_ok=True)
+    
+    env = os.environ.copy()
+    token = hf_token or os.environ.get("HF_TOKEN")
+    if token:
+        env["HF_TOKEN"] = token
+    
+    # Enable hf_transfer for faster downloads if available
+    env["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
+    
+    cmd = ["huggingface-cli", "download", repo_id, "--local-dir", local_dir]
+    print(f"Running: {' '.join(cmd)}")
+    
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, env=env)
+    for line in process.stdout:
+        print(line, end='', flush=True)
+    process.wait()
+    
+    if process.returncode != 0:
+        raise Exception(f"Model download failed with exit code {process.returncode}")
+    
+    print()
+    print("Model download completed!")
+
+
 def _run_new_structure(config: dict) -> List[Dict[str, Any]]:
     """Run benchmarks using new standardized YAML structure.
     
@@ -122,8 +157,17 @@ def _run_new_structure(config: dict) -> List[Dict[str, Any]]:
         if hf_token:
             os.environ["HF_TOKEN"] = hf_token
         
-        # Extract model and port from serve config (they're used separately)
-        model = serve_cfg.pop("model", model_cfg.get("repo_id", ""))
+        # Download model if repo_id and local_dir are specified
+        if model_cfg.get("repo_id") and model_cfg.get("local_dir"):
+            _download_model(model_cfg["repo_id"], model_cfg["local_dir"], hf_token)
+        
+        # Determine model: serve.model > serve.model_path > model.local_dir > model.repo_id
+        model = (
+            serve_cfg.pop("model", None) or 
+            serve_cfg.pop("model_path", None) or 
+            model_cfg.get("local_dir") or 
+            model_cfg.get("repo_id", "")
+        )
         port = serve_cfg.pop("port", 8000)
         
         if not model:

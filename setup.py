@@ -27,12 +27,14 @@ setup(
         # For local vLLM benchmarking
         "vllm": [
             "vllm==0.15.0",
-            "huggingface_hub[cli]",
+            "huggingface_hub[cli,hf_transfer]",
+            "hf_transfer",
         ],
         # All engines (for future expansion)
         "all": [
             "vllm==0.15.0",
-            "huggingface_hub[cli]",
+            "huggingface_hub[cli,hf_transfer]",
+            "hf_transfer",
         ],
         # Development/testing dependencies
         "dev": [

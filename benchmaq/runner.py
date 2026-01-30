@@ -357,7 +357,8 @@ def run_remote(config: dict, remote_cfg: dict):
         "pyyaml",
         "requests",
         "vllm==0.15.0",
-        "huggingface_hub",
+        "huggingface_hub[hf_transfer]",
+        "hf_transfer",
     ])
     
     if key_filename:
@@ -610,8 +611,11 @@ def run_remote(config: dict, remote_cfg: dict):
             if token:
                 env["HF_TOKEN"] = token
             
+            # Enable hf_transfer for faster downloads
+            env["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
+            
             cmd = ["huggingface-cli", "download", repo_id, "--local-dir", local_dir]
-            print(f"Running: {' '.join(cmd)}")
+            print(f"Running: {' '.join(cmd)} (with hf_transfer enabled)")
             sys.stdout.flush()
             
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, env=env)
@@ -650,7 +654,13 @@ def run_remote(config: dict, remote_cfg: dict):
                 if model_cfg.get("repo_id") and model_cfg.get("local_dir"):
                     download_model(model_cfg["repo_id"], model_cfg["local_dir"], hf_token)
                 
-                model = serve_cfg.pop("model", model_cfg.get("repo_id", ""))
+                # Determine model: serve.model > serve.model_path > model.local_dir > model.repo_id
+                model = (
+                    serve_cfg.pop("model", None) or 
+                    serve_cfg.pop("model_path", None) or 
+                    model_cfg.get("local_dir") or 
+                    model_cfg.get("repo_id", "")
+                )
                 port = serve_cfg.pop("port", 8000)
                 
                 if not model:

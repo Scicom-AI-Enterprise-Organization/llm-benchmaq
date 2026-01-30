@@ -20,7 +20,8 @@ remote:
     - vllm==0.15.0
     - pyyaml
     - requests
-    - huggingface_hub
+    - huggingface_hub[hf_transfer]
+    - hf_transfer
 
 # Benchmark configurations (new standardized format)
 benchmark:
