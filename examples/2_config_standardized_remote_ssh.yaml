@@ -1,10 +1,10 @@
 # Standardized benchmaq configuration for Remote SSH execution
-# Uses the new benchmark: structure with serve:, bench:, results:
 #
 # Usage:
-#   benchmaq vllm from-yaml examples/8_config_standardized_remote_ssh.yaml
+#   benchmaq vllm bench examples/2_config_standardized_remote_ssh.yaml
 #   # or
-#   benchmaq bench examples/8_config_standardized_remote_ssh.yaml
+#   import benchmaq.vllm.bench as bench
+#   bench.from_yaml("examples/2_config_standardized_remote_ssh.yaml")
 
 # Remote execution configuration
 remote:
@@ -29,15 +29,14 @@ benchmark:
   - name: remote_tp8_benchmark
     engine: vllm
     
-    # Optional: model download configuration
+    # Model download configuration (local_dir used as serve model path)
     model:
       repo_id: "meta-llama/Llama-3.1-70B-Instruct"
       local_dir: "/workspace/models/llama-3.1-70b"
-      hf_token: ""  # or set HF_TOKEN env var
+      # hf_token: ""  # or set HF_TOKEN env var
     
-    # vLLM serve arguments (any valid vllm serve arg)
+    # vLLM serve arguments (model auto-resolved from model.local_dir)
     serve:
-      model: "/workspace/models/llama-3.1-70b"  # Use local path after download
       tensor_parallel_size: 8
       max_model_len: 32000
       max_num_seqs: 256
@@ -92,8 +91,10 @@ benchmark:
   - name: remote_tp4_benchmark
     engine: vllm
     
+    model:
+      repo_id: "meta-llama/Llama-3.1-8B-Instruct"
+    
     serve:
-      model: "meta-llama/Llama-3.1-8B-Instruct"
       tensor_parallel_size: 4
       max_model_len: 16000
       max_num_seqs: 128
