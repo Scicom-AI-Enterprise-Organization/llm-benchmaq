@@ -1,6 +1,6 @@
 pyyaml
 requests
-vllm==0.11.0
+vllm==0.15.0
 huggingface_hub[cli]
 cloudpickle
 paramiko

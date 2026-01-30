@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as f:
 
 setup(
     name="benchmaq",
-    version="0.4.0",
+    version="0.4.1",
     author="Scicom AI Enterprise",
     description="Seamless scripts for LLM performance benchmarking",
     long_description=long_description,
@@ -26,12 +26,12 @@ setup(
     extras_require={
         # For local vLLM benchmarking
         "vllm": [
-            "vllm==0.11.0",
+            "vllm==0.15.0",
             "huggingface_hub[cli]",
         ],
         # All engines (for future expansion)
         "all": [
-            "vllm==0.11.0",
+            "vllm==0.15.0",
             "huggingface_hub[cli]",
         ],
         # Development/testing dependencies

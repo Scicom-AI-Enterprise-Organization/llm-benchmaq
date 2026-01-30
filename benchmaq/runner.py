@@ -4,16 +4,83 @@ LLM Benchmark Runner
 
 Dispatches benchmark runs to the appropriate engine (vllm, tensorrt-llm, sglang, etc.)
 Supports remote execution on GPU servers via pyremote with live streaming.
+
+Supports both:
+- New standardized structure: benchmark: [{serve:, bench:, results:}]
+- Legacy structure: runs: [{vllm_serve:, benchmark:}]
 """
 
 import importlib
 import os
 import sys
+import hashlib
 
 import yaml
 
 
 SUPPORTED_ENGINES = ["vllm"]
+
+
+def _kwargs_to_cli_args(kwargs: dict) -> list:
+    """Convert kwargs dict to CLI arguments list.
+    
+    key_name -> --key-name
+    Boolean True -> flag added
+    Boolean False -> flag omitted
+    Other values -> --key-name value
+    """
+    args = []
+    for key, value in kwargs.items():
+        arg_name = f"--{key.replace('_', '-')}"
+        if isinstance(value, bool):
+            if value:
+                args.append(arg_name)
+        elif value is not None:
+            args.extend([arg_name, str(value)])
+    return args
+
+
+def _generate_result_name(config_name: str, index: int, bench_cfg: dict) -> str:
+    """Generate a unique result name from config name and bench parameters."""
+    cfg_str = str(sorted(bench_cfg.items()))
+    cfg_hash = hashlib.md5(cfg_str.encode()).hexdigest()[:6]
+    
+    parts = [config_name]
+    if "random_input_len" in bench_cfg:
+        parts.append(f"in{bench_cfg['random_input_len']}")
+    if "random_output_len" in bench_cfg:
+        parts.append(f"out{bench_cfg['random_output_len']}")
+    if "num_prompts" in bench_cfg:
+        parts.append(f"p{bench_cfg['num_prompts']}")
+    if "max_concurrency" in bench_cfg:
+        parts.append(f"c{bench_cfg['max_concurrency']}")
+    parts.append(cfg_hash)
+    
+    return "_".join(parts)
+
+
+def _get_results_config(config: dict) -> dict:
+    """Extract results configuration from config (supports both new and legacy formats)."""
+    # New 'benchmark:' structure
+    if "benchmark" in config:
+        for run_cfg in config.get("benchmark", []):
+            results_cfg = run_cfg.get("results", {})
+            if results_cfg.get("save_result"):
+                return {
+                    "save_result": True,
+                    "result_dir": results_cfg.get("result_dir", "./benchmark_results"),
+                }
+    
+    # Legacy 'runs:' structure
+    for run_cfg in config.get("runs", []):
+        benchmark_cfg = run_cfg.get("benchmark", {})
+        if benchmark_cfg.get("save_results"):
+            return {
+                "save_result": True,
+                "result_dir": benchmark_cfg.get("output_dir", "./benchmark_results"),
+            }
+    
+    return {"save_result": False, "result_dir": "./benchmark_results"}
 
 
 def _write_local_logs_from_dict(config: dict, logs: dict):
@@ -22,21 +89,13 @@ def _write_local_logs_from_dict(config: dict, logs: dict):
         print("No logs to save")
         return
     
-    # Get output_dir from config
-    output_dir = "./benchmark_results"
-    save_results = False
-    for run_cfg in config.get("runs", []):
-        benchmark_cfg = run_cfg.get("benchmark", {})
-        if benchmark_cfg.get("save_results"):
-            save_results = True
-            output_dir = benchmark_cfg.get("output_dir", "./benchmark_results")
-            break
+    results_cfg = _get_results_config(config)
     
-    if not save_results:
-        print("save_results is False, skipping log files")
+    if not results_cfg.get("save_result"):
+        print("save_result is False, skipping log files")
         return
     
-    output_dir = output_dir.lstrip("./")
+    output_dir = results_cfg.get("result_dir", "./benchmark_results").lstrip("./")
     os.makedirs(output_dir, exist_ok=True)
     
     for result_name, log_lines in logs.items():
@@ -54,13 +113,9 @@ def _download_results(config: dict, remote_cfg: dict):
     import paramiko
     from scp import SCPClient
     
-    # Get output_dir from config
-    output_dir = "./benchmark_results"
-    for run_cfg in config.get("runs", []):
-        benchmark_cfg = run_cfg.get("benchmark", {})
-        if benchmark_cfg.get("save_results"):
-            output_dir = benchmark_cfg.get("output_dir", "./benchmark_results")
-            break
+    # Get output_dir from config (supports both new and legacy formats)
+    results_cfg = _get_results_config(config)
+    output_dir = results_cfg.get("result_dir", "./benchmark_results")
     
     host = remote_cfg["host"]
     port = remote_cfg.get("port", 22)
@@ -227,6 +282,11 @@ def run_e2e(config: dict):
         # Inject pod name into run names for result identification
         pod_name = instance.get('name', '')
         if pod_name:
+            # Handle new 'benchmark:' structure
+            for bench_cfg in config.get("benchmark", []):
+                original_name = bench_cfg.get("name", "benchmark")
+                bench_cfg["name"] = f"{pod_name}_{original_name}"
+            # Handle legacy 'runs:' structure
             for run_cfg in config.get("runs", []):
                 original_name = run_cfg.get("name", "benchmark")
                 run_cfg["name"] = f"{pod_name}_{original_name}"
@@ -275,7 +335,12 @@ def run_e2e(config: dict):
 
 
 def run_remote(config: dict, remote_cfg: dict):
-    """Execute benchmark on a remote GPU server via pyremote with live streaming."""
+    """Execute benchmark on a remote GPU server via pyremote with live streaming.
+    
+    Supports both:
+    - New standardized structure: benchmark: [{serve:, bench:, results:}]
+    - Legacy structure: runs: [{vllm_serve:, benchmark:}]
+    """
     from pyremote import remote, UvConfig
     
     host = remote_cfg["host"]
@@ -291,7 +356,7 @@ def run_remote(config: dict, remote_cfg: dict):
     deps = remote_cfg.get("dependencies", [
         "pyyaml",
         "requests",
-        "vllm==0.11.0",
+        "vllm==0.15.0",
         "huggingface_hub",
     ])
     
@@ -326,49 +391,55 @@ def run_remote(config: dict, remote_cfg: dict):
         import subprocess
         import sys
         import time
+        import hashlib
         
         import requests
         
+        def kwargs_to_cli_args(kwargs):
+            """Convert kwargs dict to CLI arguments list."""
+            args = []
+            for key, value in kwargs.items():
+                arg_name = f"--{key.replace('_', '-')}"
+                if isinstance(value, bool):
+                    if value:
+                        args.append(arg_name)
+                elif value is not None:
+                    args.extend([arg_name, str(value)])
+            return args
+        
+        def generate_result_name(config_name, index, bench_cfg):
+            """Generate a unique result name from config name and bench parameters."""
+            cfg_str = str(sorted(bench_cfg.items()))
+            cfg_hash = hashlib.md5(cfg_str.encode()).hexdigest()[:6]
+            parts = [config_name]
+            if "random_input_len" in bench_cfg:
+                parts.append(f"in{bench_cfg['random_input_len']}")
+            if "random_output_len" in bench_cfg:
+                parts.append(f"out{bench_cfg['random_output_len']}")
+            if "num_prompts" in bench_cfg:
+                parts.append(f"p{bench_cfg['num_prompts']}")
+            if "max_concurrency" in bench_cfg:
+                parts.append(f"c{bench_cfg['max_concurrency']}")
+            parts.append(cfg_hash)
+            return "_".join(parts)
+        
         class VLLMServer:
-            def __init__(self, model_path, port, tp, dp, pp,
-                         gpu_memory_utilization=0.9, max_model_len=None,
-                         max_num_seqs=None, dtype=None,
-                         disable_log_requests=False, enable_expert_parallel=False):
-                self.model_path = model_path
+            """vLLM Server with dynamic kwargs support."""
+            
+            def __init__(self, model, port=8000, **kwargs):
+                self.model = model
                 self.port = port
-                self.tp = tp
-                self.dp = dp
-                self.pp = pp
-                self.gpu_memory_utilization = gpu_memory_utilization
-                self.max_model_len = max_model_len
-                self.max_num_seqs = max_num_seqs
-                self.dtype = dtype
-                self.disable_log_requests = disable_log_requests
-                self.enable_expert_parallel = enable_expert_parallel
+                self.serve_kwargs = kwargs
                 self.process = None
                 self.base_url = f"http://localhost:{port}"
 
-            def start(self):
-                cmd = [
-                    "vllm", "serve", self.model_path,
-                    "--port", str(self.port),
-                    "--tensor-parallel-size", str(self.tp),
-                    "--pipeline-parallel-size", str(self.pp),
-                    "--gpu-memory-utilization", str(self.gpu_memory_utilization),
-                ]
-                if self.dp > 1:
-                    cmd.extend(["--data-parallel-size", str(self.dp)])
-                if self.max_model_len:
-                    cmd.extend(["--max-model-len", str(self.max_model_len)])
-                if self.max_num_seqs:
-                    cmd.extend(["--max-num-seqs", str(self.max_num_seqs)])
-                if self.dtype:
-                    cmd.extend(["--dtype", self.dtype])
-                if self.disable_log_requests:
-                    cmd.append("--disable-log-requests")
-                if self.enable_expert_parallel:
-                    cmd.append("--enable-expert-parallel")
+            def _build_cmd(self):
+                cmd = ["vllm", "serve", self.model, "--port", str(self.port)]
+                cmd.extend(kwargs_to_cli_args(self.serve_kwargs))
+                return cmd
 
+            def start(self):
+                cmd = self._build_cmd()
                 print(f"Starting vLLM server: {' '.join(cmd)}")
                 sys.stdout.flush()
                 self.process = subprocess.Popen(cmd, text=True)
@@ -423,7 +494,60 @@ def run_remote(config: dict, remote_cfg: dict):
             def __exit__(self, *args):
                 self.stop()
 
-        def run_benchmark(model_path, port, output_dir, result_name, ctx, output_len, num_prompts, concurrency, save_results=False):
+        def run_benchmark_new(model, port, result_name, results_config=None, **kwargs):
+            """Run vLLM bench serve with dynamic kwargs (new API)."""
+            print()
+            print("=" * 64)
+            print(f"BENCHMARK: {result_name}")
+            print("=" * 64)
+            sys.stdout.flush()
+
+            cmd = ["vllm", "bench", "serve",
+                   "--base-url", f"http://localhost:{port}",
+                   "--model", model]
+            cmd.extend(kwargs_to_cli_args(kwargs))
+            
+            # Handle results config
+            results_config = results_config or {}
+            save_result = results_config.get("save_result", False)
+            result_dir = results_config.get("result_dir", "./benchmark_results")
+            result_filename = results_config.get("result_filename")
+            save_detailed = results_config.get("save_detailed", False)
+            
+            if save_result:
+                os.makedirs(result_dir, exist_ok=True)
+                cmd.append("--save-result")
+                cmd.extend(["--result-dir", result_dir])
+                if result_filename:
+                    cmd.extend(["--result-filename", result_filename])
+                else:
+                    cmd.extend(["--result-filename", f"{result_name}.json"])
+                if save_detailed:
+                    cmd.append("--save-detailed")
+
+            print(f"Running: {' '.join(cmd)}")
+            sys.stdout.flush()
+            
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+            log_lines = []
+            for line in process.stdout:
+                print(line, end='', flush=True)
+                if "(APIServer)" not in line:
+                    log_lines.append(line.rstrip('\n'))
+            process.wait()
+            
+            if save_result:
+                log_path = os.path.join(result_dir, f"{result_name}.txt")
+                with open(log_path, "w") as f:
+                    f.write(f"BENCHMARK: {result_name}\n")
+                    f.write("=" * 64 + "\n")
+                    for line in log_lines:
+                        f.write(line + "\n")
+                print(f"Saved log: {log_path}")
+                sys.stdout.flush()
+
+        def run_benchmark_legacy(model_path, port, output_dir, result_name, ctx, output_len, num_prompts, concurrency, save_results=False):
+            """Run vLLM bench serve (legacy API)."""
             print()
             print("=" * 64)
             print(f"BENCHMARK: {result_name}")
@@ -457,13 +581,12 @@ def run_remote(config: dict, remote_cfg: dict):
             log_lines = []
             for line in process.stdout:
                 print(line, end='', flush=True)
-                # Filter out APIServer logs for storage
                 if "(APIServer)" not in line:
                     log_lines.append(line.rstrip('\n'))
             process.wait()
             
-            # Save .txt log file on remote if save_results is enabled
             if save_results:
+                os.makedirs(output_dir, exist_ok=True)
                 log_path = os.path.join(output_dir, f"{result_name}.txt")
                 with open(log_path, "w") as f:
                     f.write(f"BENCHMARK: {result_name}\n")
@@ -482,7 +605,6 @@ def run_remote(config: dict, remote_cfg: dict):
             
             os.makedirs(local_dir, exist_ok=True)
             
-            # Set HF_TOKEN if provided (config takes priority over env)
             env = os.environ.copy()
             token = hf_token or os.environ.get("HF_TOKEN")
             if token:
@@ -501,80 +623,133 @@ def run_remote(config: dict, remote_cfg: dict):
                 raise Exception(f"Model download failed with exit code {process.returncode}")
             
             print()
-            print("✓ Model download completed!")
+            print("Model download completed!")
             sys.stdout.flush()
 
-        # Run benchmarks
-        for run_cfg in config.get("runs", []):
-            name = run_cfg.get("name", "")
-            model_cfg = run_cfg.get("model", {})
-            vllm_serve_cfg = run_cfg.get("vllm_serve", run_cfg)
-            benchmark_cfg = run_cfg.get("benchmark", run_cfg)
-
-            # Set HF_TOKEN for gated models (config takes priority over env)
-            hf_token = model_cfg.get("hf_token") or config.get("hf_token")
-            if hf_token:
-                os.environ["HF_TOKEN"] = hf_token
-
-            # Download model if specified
-            if model_cfg.get("repo_id") and model_cfg.get("local_dir"):
-                download_model(model_cfg["repo_id"], model_cfg["local_dir"], hf_token)
-
-            model_path = vllm_serve_cfg.get("model_path", model_cfg.get("local_dir", ""))
-            port = vllm_serve_cfg.get("port", 8000)
-            gpu_memory_utilization = vllm_serve_cfg.get("gpu_memory_utilization", 0.9)
-            max_model_len = vllm_serve_cfg.get("max_model_len")
-            max_num_seqs = vllm_serve_cfg.get("max_num_seqs")
-            dtype = vllm_serve_cfg.get("dtype")
-            disable_log_requests = vllm_serve_cfg.get("disable_log_requests", False)
-            enable_expert_parallel = vllm_serve_cfg.get("enable_expert_parallel", False)
-            parallelism_pairs = vllm_serve_cfg.get("parallelism_pairs", [])
-
-            output_dir = benchmark_cfg.get("output_dir", "./benchmark_results")
-            context_sizes = benchmark_cfg.get("context_size", [])
-            concurrencies = benchmark_cfg.get("concurrency", [])
-            num_prompts_list = benchmark_cfg.get("num_prompts", [])
-            output_lens = benchmark_cfg.get("output_len", [])
-            save_results = benchmark_cfg.get("save_results", False)
-
-            if not name or not model_path:
-                continue
-
-            if save_results:
-                os.makedirs(output_dir, exist_ok=True)
-
-            for pair in parallelism_pairs:
-                tp = pair.get("tensor_parallel", 1)
-                dp = pair.get("data_parallel", 1)
-                pp = pair.get("pipeline_parallel", 1)
-
+        # Check for new 'benchmark:' structure first
+        if "benchmark" in config:
+            # NEW STANDARDIZED STRUCTURE
+            for run_cfg in config.get("benchmark", []):
+                name = run_cfg.get("name", "benchmark")
+                engine = run_cfg.get("engine", "vllm")
+                
+                if engine != "vllm":
+                    print(f"Skipping {name}: engine '{engine}' not supported")
+                    continue
+                
+                model_cfg = run_cfg.get("model", {})
+                serve_cfg = run_cfg.get("serve", {}).copy()
+                bench_configs = run_cfg.get("bench", [])
+                results_cfg = run_cfg.get("results", {})
+                
+                hf_token = model_cfg.get("hf_token") or os.environ.get("HF_TOKEN")
+                if hf_token:
+                    os.environ["HF_TOKEN"] = hf_token
+                
+                # Download model if specified
+                if model_cfg.get("repo_id") and model_cfg.get("local_dir"):
+                    download_model(model_cfg["repo_id"], model_cfg["local_dir"], hf_token)
+                
+                model = serve_cfg.pop("model", model_cfg.get("repo_id", ""))
+                port = serve_cfg.pop("port", 8000)
+                
+                if not model:
+                    print(f"Skipping {name}: no model specified")
+                    continue
+                
+                if not bench_configs:
+                    print(f"Skipping {name}: no 'bench:' configurations found")
+                    continue
+                
                 print()
                 print("=" * 64)
-                print(f"RUN: {name} | TP={tp} DP={dp} PP={pp}")
+                print(f"CONFIGURATION: {name}")
+                print(f"Model: {model}")
                 print("=" * 64)
                 sys.stdout.flush()
-
-                with VLLMServer(
-                    model_path, port, tp, dp, pp,
-                    gpu_memory_utilization=gpu_memory_utilization,
-                    max_model_len=max_model_len,
-                    max_num_seqs=max_num_seqs,
-                    dtype=dtype,
-                    disable_log_requests=disable_log_requests,
-                    enable_expert_parallel=enable_expert_parallel
-                ) as server:
-                    for ctx in context_sizes:
-                        for concurrency in concurrencies:
-                            for num_prompts in num_prompts_list:
-                                for output_len in output_lens:
-                                    result_name = f"{name}_TP{tp}_DP{dp}_CTX{ctx}_C{concurrency}_P{num_prompts}_O{output_len}"
-                                    run_benchmark(
-                                        model_path, port, output_dir, result_name,
-                                        ctx, output_len, num_prompts, concurrency,
-                                        save_results=save_results
-                                    )
-
+                
+                with VLLMServer(model=model, port=port, **serve_cfg) as server:
+                    for i, bench_cfg in enumerate(bench_configs):
+                        result_name = generate_result_name(name, i, bench_cfg)
+                        run_benchmark_new(
+                            model=model,
+                            port=port,
+                            result_name=result_name,
+                            results_config=results_cfg,
+                            **bench_cfg
+                        )
+                
                 time.sleep(5)
+        
+        else:
+            # LEGACY 'runs:' STRUCTURE
+            for run_cfg in config.get("runs", []):
+                name = run_cfg.get("name", "")
+                model_cfg = run_cfg.get("model", {})
+                vllm_serve_cfg = run_cfg.get("vllm_serve", run_cfg)
+                benchmark_cfg = run_cfg.get("benchmark", run_cfg)
+
+                hf_token = model_cfg.get("hf_token") or config.get("hf_token")
+                if hf_token:
+                    os.environ["HF_TOKEN"] = hf_token
+
+                if model_cfg.get("repo_id") and model_cfg.get("local_dir"):
+                    download_model(model_cfg["repo_id"], model_cfg["local_dir"], hf_token)
+
+                model_path = vllm_serve_cfg.get("model_path", model_cfg.get("local_dir", ""))
+                port = vllm_serve_cfg.get("port", 8000)
+                parallelism_pairs = vllm_serve_cfg.get("parallelism_pairs", [])
+                
+                # Build serve kwargs
+                serve_kwargs = {}
+                for key in ["gpu_memory_utilization", "max_model_len", "max_num_seqs", 
+                            "dtype", "disable_log_requests", "enable_expert_parallel"]:
+                    if key in vllm_serve_cfg:
+                        serve_kwargs[key] = vllm_serve_cfg[key]
+
+                output_dir = benchmark_cfg.get("output_dir", "./benchmark_results")
+                context_sizes = benchmark_cfg.get("context_size", [])
+                concurrencies = benchmark_cfg.get("concurrency", [])
+                num_prompts_list = benchmark_cfg.get("num_prompts", [])
+                output_lens = benchmark_cfg.get("output_len", [])
+                save_results = benchmark_cfg.get("save_results", False)
+
+                if not name or not model_path:
+                    continue
+
+                if save_results:
+                    os.makedirs(output_dir, exist_ok=True)
+
+                for pair in parallelism_pairs:
+                    tp = pair.get("tensor_parallel", 1)
+                    dp = pair.get("data_parallel", 1)
+                    pp = pair.get("pipeline_parallel", 1)
+
+                    print()
+                    print("=" * 64)
+                    print(f"RUN: {name} | TP={tp} DP={dp} PP={pp}")
+                    print("=" * 64)
+                    sys.stdout.flush()
+
+                    current_serve_kwargs = serve_kwargs.copy()
+                    current_serve_kwargs["tensor_parallel_size"] = tp
+                    current_serve_kwargs["pipeline_parallel_size"] = pp
+                    if dp > 1:
+                        current_serve_kwargs["data_parallel_size"] = dp
+
+                    with VLLMServer(model=model_path, port=port, **current_serve_kwargs) as server:
+                        for ctx in context_sizes:
+                            for concurrency in concurrencies:
+                                for num_prompts in num_prompts_list:
+                                    for output_len in output_lens:
+                                        result_name = f"{name}_TP{tp}_DP{dp}_CTX{ctx}_C{concurrency}_P{num_prompts}_O{output_len}"
+                                        run_benchmark_legacy(
+                                            model_path, port, output_dir, result_name,
+                                            ctx, output_len, num_prompts, concurrency,
+                                            save_results=save_results
+                                        )
+
+                    time.sleep(5)
 
         print()
         print("=" * 64)
@@ -596,14 +771,16 @@ def run(config_or_path):
     """
     Main entry point for running benchmarks.
     
+    Supports both:
+    - New standardized structure: benchmark: [{serve:, bench:, results:}]
+    - Legacy structure: runs: [{vllm_serve:, benchmark:}]
+    
     Args:
         config_or_path: Either a config dict or a path to a YAML config file
         
     Returns:
         Dict with status and results
     """
-    from typing import Union
-    
     # Handle both dict and string (path) inputs
     if isinstance(config_or_path, dict):
         config = config_or_path
@@ -620,12 +797,24 @@ def run(config_or_path):
         with open(config_path) as f:
             config = yaml.safe_load(f)
 
-    runs = config.get("runs", [])
-    if not runs:
-        print("Error: No runs defined in config")
+    # Determine structure and engine
+    if "benchmark" in config:
+        # New standardized structure
+        benchmark_configs = config.get("benchmark", [])
+        if not benchmark_configs:
+            print("Error: No benchmark configurations defined in 'benchmark:' section")
+            sys.exit(1)
+        engine = benchmark_configs[0].get("engine", "vllm")
+    elif "runs" in config:
+        # Legacy structure
+        runs = config.get("runs", [])
+        if not runs:
+            print("Error: No runs defined in config")
+            sys.exit(1)
+        engine = runs[0].get("engine", "vllm")
+    else:
+        print("Error: No 'benchmark:' or 'runs:' section found in config")
         sys.exit(1)
-
-    engine = runs[0].get("engine", "vllm")
 
     if engine not in SUPPORTED_ENGINES:
         print(f"Error: Unsupported engine '{engine}'. Supported: {SUPPORTED_ENGINES}")
