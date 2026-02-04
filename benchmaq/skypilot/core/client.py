@@ -401,12 +401,8 @@ def _download_results_via_ssh(
     retry_delay = 10
     ssh_connected = False
     
-    # File patterns to try in order (fallback logic)
-    file_patterns = [
-        f"{remote_path}/*.json {remote_path}/*.txt",      # Try json + txt first
-        f"{remote_path}/*.jsonl {remote_path}/*.txt",     # Then jsonl + txt
-        f"{remote_path}/*.txt",                            # Then just txt
-    ]
+    # Search for all file types at once
+    all_patterns = f"{remote_path}/*.json {remote_path}/*.jsonl {remote_path}/*.txt"
     
     remote_files = []
     
@@ -414,53 +410,48 @@ def _download_results_via_ssh(
         current_delay = retry_delay * (1.5 ** attempt)
         
         try:
-            # Try each file pattern until we find files
-            for pattern in file_patterns:
-                check_cmd = [
-                    "ssh", "-o", "ConnectTimeout=15", "-o", "StrictHostKeyChecking=no",
-                    cluster_name, 
-                    f"ls {pattern} 2>/dev/null"
-                ]
-                if debug:
-                    print(f"[DEBUG] Attempt {attempt + 1}: Running: {' '.join(check_cmd)}")
-                
-                result = subprocess.run(check_cmd, capture_output=True, text=True, timeout=45)
-                
-                if debug:
-                    print(f"[DEBUG] stdout: {result.stdout[:200] if result.stdout else '(empty)'}")
-                    print(f"[DEBUG] stderr: {result.stderr[:200] if result.stderr else '(empty)'}")
-                
-                # Check for connection errors
-                if "Connection refused" in result.stderr or "Connection timed out" in result.stderr or "No route to host" in result.stderr:
-                    print(f"  SSH connection failed (attempt {attempt + 1}/{max_retries})")
-                    if debug:
-                        print(f"  [DEBUG] {result.stderr.strip()}")
-                    break  # Break pattern loop to retry connection
-                
-                # Check for hostname resolution errors
-                if "Could not resolve hostname" in result.stderr:
-                    print(f"  SSH hostname not found (attempt {attempt + 1}/{max_retries})")
-                    print(f"  Hint: Run 'sky status' to refresh SSH config")
-                    break  # Break pattern loop to retry connection
-                
-                ssh_connected = True
-                
-                # Parse found files (filter out errors and empty lines)
-                stdout_lines = [line.strip() for line in result.stdout.strip().split("\n") if line.strip()]
-                found_files = [f for f in stdout_lines if not f.startswith("ls:") and f]
-                
-                if found_files:
-                    remote_files = found_files
-                    if debug:
-                        print(f"[DEBUG] Found {len(remote_files)} files with pattern: {pattern}")
-                    break  # Found files, stop trying patterns
+            check_cmd = [
+                "ssh", "-o", "ConnectTimeout=15", "-o", "StrictHostKeyChecking=no",
+                cluster_name, 
+                f"ls {all_patterns} 2>/dev/null"
+            ]
+            if debug:
+                print(f"[DEBUG] Attempt {attempt + 1}: Running: {' '.join(check_cmd)}")
             
-            if remote_files or ssh_connected:
-                break  # Either found files or connected successfully
-                
-            if attempt < max_retries - 1:
-                print(f"  Retrying in {int(current_delay)} seconds...")
-                time.sleep(current_delay)
+            result = subprocess.run(check_cmd, capture_output=True, text=True, timeout=45)
+            
+            if debug:
+                print(f"[DEBUG] stdout: {result.stdout[:500] if result.stdout else '(empty)'}")
+                print(f"[DEBUG] stderr: {result.stderr[:200] if result.stderr else '(empty)'}")
+            
+            # Check for connection errors
+            if "Connection refused" in result.stderr or "Connection timed out" in result.stderr or "No route to host" in result.stderr:
+                print(f"  SSH connection failed (attempt {attempt + 1}/{max_retries})")
+                if debug:
+                    print(f"  [DEBUG] {result.stderr.strip()}")
+                if attempt < max_retries - 1:
+                    print(f"  Retrying in {int(current_delay)} seconds...")
+                    time.sleep(current_delay)
+                continue
+            
+            # Check for hostname resolution errors
+            if "Could not resolve hostname" in result.stderr:
+                print(f"  SSH hostname not found (attempt {attempt + 1}/{max_retries})")
+                print(f"  Hint: Run 'sky status' to refresh SSH config")
+                if attempt < max_retries - 1:
+                    print(f"  Retrying in {int(current_delay)} seconds...")
+                    time.sleep(current_delay)
+                continue
+            
+            ssh_connected = True
+            
+            # Parse found files (filter out errors and empty lines)
+            stdout_lines = [line.strip() for line in result.stdout.strip().split("\n") if line.strip()]
+            remote_files = [f for f in stdout_lines if not f.startswith("ls:") and f]
+            
+            if debug and remote_files:
+                print(f"[DEBUG] Found {len(remote_files)} files")
+            break
             
         except subprocess.TimeoutExpired:
             print(f"  SSH timed out (attempt {attempt + 1}/{max_retries})")
