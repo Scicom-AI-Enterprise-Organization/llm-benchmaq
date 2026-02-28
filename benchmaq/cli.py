@@ -6,6 +6,7 @@ Usage:
     benchmaq bench <config.yaml>              # Run benchmark directly (reads 'benchmark' key)
     benchmaq vllm bench <config.yaml>         # Run vLLM benchmark (local or remote SSH)
     benchmaq sglang bench <config.yaml>       # Run SGLang benchmark (local or remote SSH)
+    benchmaq stt bench <config.yaml>          # Run STT benchmark (local or remote SSH)
     benchmaq runpod bench <config.yaml>       # End-to-end RunPod benchmark
     benchmaq sky bench --config <file>        # End-to-end SkyPilot benchmark
 """
@@ -24,6 +25,7 @@ Examples:
   benchmaq bench config.yaml              Run benchmark directly from YAML config
   benchmaq vllm bench config.yaml         Run vLLM benchmark from YAML config
   benchmaq sglang bench config.yaml       Run SGLang benchmark from YAML config
+  benchmaq stt bench config.yaml          Run STT benchmark from YAML config
   benchmaq runpod bench config.yaml       End-to-end RunPod benchmark (deploy -> bench -> delete)
   benchmaq sky bench -c config.yaml       End-to-end SkyPilot benchmark (launch -> bench -> down)
         """
@@ -75,6 +77,24 @@ Examples:
         description="Run SGLang benchmarks locally or on a remote GPU server via SSH"
     )
     sglang_bench_parser.add_argument("config", help="Path to YAML config file")
+
+    # =================================================================
+    # stt command
+    # =================================================================
+    stt_parser = subparsers.add_parser(
+        "stt",
+        help="STT (Speech-to-Text) benchmarking commands",
+        description="Run STT benchmarks using vLLM server and YAML configuration"
+    )
+    stt_subparsers = stt_parser.add_subparsers(dest="stt_command")
+
+    # stt bench
+    stt_bench_parser = stt_subparsers.add_parser(
+        "bench",
+        help="Run STT benchmark from YAML config",
+        description="Run STT benchmarks locally or on a remote GPU server via SSH"
+    )
+    stt_bench_parser.add_argument("config", help="Path to YAML config file")
 
     # =================================================================
     # runpod command
@@ -201,6 +221,37 @@ Examples:
                 sys.exit(1)
         else:
             sglang_parser.print_help()
+
+    # =================================================================
+    # Handle stt command
+    # =================================================================
+    elif args.command == "stt":
+        if args.stt_command == "bench":
+            from .stt.bench import from_yaml
+
+            config_path = args.config
+            if not os.path.exists(config_path):
+                print(f"Error: Config file not found: {config_path}")
+                sys.exit(1)
+
+            print(f"Running STT benchmark from: {config_path}")
+            result = from_yaml(config_path)
+
+            if result.get("status") == "success":
+                print("\n" + "=" * 64)
+                print("STT BENCHMARK COMPLETED SUCCESSFULLY")
+                print("=" * 64)
+                if result.get("mode") == "remote":
+                    print(f"Mode: Remote ({result.get('host')})")
+                else:
+                    print(f"Total runs: {len(result.get('results', []))}")
+                    for r in result.get("results", []):
+                        print(f"  - {r.get('name', 'unknown')}")
+            else:
+                print(f"\nError: {result.get('error', 'Unknown error')}")
+                sys.exit(1)
+        else:
+            stt_parser.print_help()
 
     # =================================================================
     # Handle runpod command

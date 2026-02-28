@@ -27,5 +27,6 @@ from . import vllm
 from . import sglang
 from . import runpod
 from . import skypilot
+from . import stt
 
-__all__ = ["__version__", "vllm", "sglang", "runpod", "skypilot"]
+__all__ = ["__version__", "vllm", "sglang", "runpod", "skypilot", "stt"]
