@@ -36,9 +36,9 @@ setup(
             "huggingface_hub[cli,hf_transfer]",
             "hf_transfer",
         ],
-        # For STT benchmarking (uses vLLM as server)
+        # For STT benchmarking (uses vLLM as server + audio support)
         "stt": [
-            "vllm==0.15.0",
+            "vllm[audio]==0.15.0",
             "huggingface_hub[cli,hf_transfer]",
             "hf_transfer",
         ],

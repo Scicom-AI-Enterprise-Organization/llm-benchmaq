@@ -4,11 +4,11 @@ Uses vLLM HTTP server to serve STT models and a custom benchmark client
 to measure RTF (Real-Time Factor), throughput, and per-request timing.
 
 Usage:
-    import benchmaq.stt.bench as bench
+    import benchmaq.vllm.stt.bench as bench
     result = bench.from_yaml("config.yaml")
 
 CLI:
-    benchmaq stt bench config.yaml
+    benchmaq vllm stt bench config.yaml
 """
 
 from . import bench
