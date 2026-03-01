@@ -1,6 +1,6 @@
 # STT (Speech-to-Text) Benchmark Configuration with SkyPilot
 #
-# Launches 1x H200 on RunPod via SkyPilot, runs STT benchmarks, downloads results.
+# Launches 1x A100 on RunPod via SkyPilot, runs STT benchmarks, downloads results.
 #
 # Usage:
 #   benchmaq sky bench -c examples/stt_benchmark_skypilot.yaml
@@ -15,12 +15,12 @@
 # SkyPilot Task Configuration
 # =================================================================
 skypilot:
-  name: stt-benchmark-1xh200
+  name: stt-benchmark-1xa100
 
   workdir: .
 
   resources:
-    accelerators: H200-SXM:1
+    accelerators: A100-80GB:1
     disk_size: 200
 
     any_of:
@@ -30,7 +30,7 @@ skypilot:
     HF_TOKEN: ""  # Set your HuggingFace token here or use HF_TOKEN env var
 
   file_mounts:
-    /data/test.wav: stt/benchmarks/sample_12s.wav
+    /data/test.wav: benchmaq/vllm/stt/benchmarks/sample_12s.wav
 
   setup: |
     set -e
@@ -59,7 +59,7 @@ skypilot:
 # =================================================================
 benchmark:
   # ---- Whisper Large V3 ----
-  - name: whisper-large-v3-1xh200
+  - name: whisper-large-v3-1xa100
     engine: stt
     model:
       repo_id: "openai/whisper-large-v3"
@@ -80,10 +80,10 @@ benchmark:
         language: "en"
     results:
       save_result: true
-      result_dir: "./stt_benchmark_results_h200"
+      result_dir: "./stt_benchmark_results_a100"
 
   # ---- Whisper Large V3 Turbo ----
-  - name: whisper-large-v3-turbo-1xh200
+  - name: whisper-large-v3-turbo-1xa100
     engine: stt
     model:
       repo_id: "openai/whisper-large-v3-turbo"
@@ -104,4 +104,4 @@ benchmark:
         language: "en"
     results:
       save_result: true
-      result_dir: "./stt_benchmark_results_h200"
+      result_dir: "./stt_benchmark_results_a100"
