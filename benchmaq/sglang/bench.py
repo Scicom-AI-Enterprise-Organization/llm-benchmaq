@@ -88,23 +88,30 @@ def _run(config: dict) -> Dict[str, Any]:
 def _download_model(repo_id: str, local_dir: str, hf_token: Optional[str] = None):
     """Download model from HuggingFace Hub."""
     import subprocess
-    
+
     print()
     print("=" * 64)
     print(f"DOWNLOADING MODEL: {repo_id}")
     print(f"Destination: {local_dir}")
     print("=" * 64)
-    
+
     os.makedirs(local_dir, exist_ok=True)
-    
+
     env = os.environ.copy()
     token = hf_token or os.environ.get("HF_TOKEN")
     if token:
         env["HF_TOKEN"] = token
-    
+
     env["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
-    
-    cmd = ["huggingface-cli", "download", repo_id, "--local-dir", local_dir]
+
+    import shutil
+    hf_bin = shutil.which("hf") or shutil.which("huggingface-cli")
+    if not hf_bin:
+        raise FileNotFoundError(
+            "Neither 'hf' nor 'huggingface-cli' found on PATH. "
+            "Install huggingface_hub and ensure the venv bin is on PATH."
+        )
+    cmd = [hf_bin, "download", repo_id, "--local-dir", local_dir]
     print(f"Running: {' '.join(cmd)}")
     
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, env=env)
