@@ -1,0 +1,67 @@
+runpod:
+  ssh_private_key: "~/.runpod/ssh/RunPod-Key-Go"
+  pod:
+    name: "benchmaq-rtx4090-test"
+    gpu_type: "NVIDIA GeForce RTX 4090"
+    gpu_count: 1
+    instance_type: on-demand
+    secure_cloud: true
+  container:
+    image: "runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04"
+    disk_size: 50
+  storage:
+    volume_size: 50
+    mount_path: "/workspace"
+  ports:
+    http: [8888, 8000, 30000]
+    tcp: [22]
+  env:
+    HF_HOME: "/workspace/hf_home"
+
+remote:
+  uv:
+    path: "~/.benchmark-venv"
+    python_version: "3.11"
+  dependencies:
+    - pyyaml
+    - requests
+    - vllm
+    - sglang[all]
+    - huggingface_hub[hf_transfer]
+    - hf_transfer
+    - flashinfer-python
+
+benchmark:
+  - name: vllm_qwen05b_test
+    engine: vllm
+    model:
+      repo_id: "Qwen/Qwen2.5-0.5B-Instruct"
+      local_dir: "/workspace/models/Qwen2.5-0.5B-Instruct"
+    serve:
+      max_model_len: 4096
+    bench:
+      - backend: vllm
+        dataset_name: random
+        random_input_len: 512
+        random_output_len: 128
+        num_prompts: 20
+    results:
+      save_result: true
+      result_dir: "/workspace/benchmark_results"
+
+  - name: sglang_qwen05b_test
+    engine: sglang
+    model:
+      repo_id: "Qwen/Qwen2.5-0.5B-Instruct"
+      local_dir: "/workspace/models/Qwen2.5-0.5B-Instruct"
+    serve:
+      max_model_len: 4096
+    bench:
+      - backend: sglang
+        dataset_name: random
+        random_input_len: 512
+        random_output_len: 128
+        num_prompts: 20
+    results:
+      save_result: true
+      result_dir: "/workspace/benchmark_results"

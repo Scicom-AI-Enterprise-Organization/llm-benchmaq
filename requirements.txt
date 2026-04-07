@@ -5,7 +5,7 @@ huggingface_hub[cli,hf_transfer]
 hf_transfer
 cloudpickle
 paramiko
-runpod
+# runpod Python SDK removed - using runpodctl CLI instead
 tqdm
 scp
 pyremote @ git+https://github.com/Scicom-AI-Enterprise-Organization/pyremote

@@ -170,13 +170,23 @@ def run_e2e(config: dict):
         print("STEP 1: DEPLOYING RUNPOD POD")
         print("=" * 64)
         
+        deploy_kwargs["wait_for_ready"] = False
         instance = deploy(**deploy_kwargs)
         pod_id = instance["id"]
-        
+
+        # Wait for SSH separately so pod_id is captured for cleanup
+        from .runpod.core.client import _wait_for_ssh
+        ssh_info = _wait_for_ssh(pod_id, ssh_key_path)
+        if ssh_info:
+            instance["ssh"] = ssh_info
+            print(f"SSH ready: {ssh_info['command']}")
+        else:
+            raise Exception(f"Pod {pod_id} failed to become SSH accessible")
+
         print()
         print(f"Pod deployed: {pod_id}")
         print(f"Pod name: {instance.get('name')}")
-        
+
         if "ssh" not in instance:
             raise Exception("SSH info not available from pod deployment")
         
@@ -309,7 +319,33 @@ def run_remote(config: dict, remote_cfg: dict):
         import hashlib
         
         import requests
-        
+
+        # Add UV venv bin directory to PATH so CLI tools (vllm, huggingface-cli, etc.) are found
+        venv_bin = os.path.dirname(sys.executable)
+        os.environ["PATH"] = venv_bin + ":" + os.environ.get("PATH", "")
+
+        # Ensure vllm CLI entry point exists (UV may not generate console_scripts)
+        _vllm_bin = os.path.join(venv_bin, "vllm")
+        if not os.path.isfile(_vllm_bin):
+            try:
+                with open(_vllm_bin, "w") as f:
+                    f.write(f"#!{sys.executable}\n")
+                    f.write("from vllm.scripts import main\n")
+                    f.write("main()\n")
+                os.chmod(_vllm_bin, 0o755)
+                print(f"Created vllm entry point: {_vllm_bin}")
+                sys.stdout.flush()
+            except Exception as e:
+                print(f"Warning: Could not create vllm entry point: {e}")
+                sys.stdout.flush()
+
+        def find_bin(name):
+            """Find a binary in the venv bin directory, falling back to PATH lookup."""
+            full_path = os.path.join(venv_bin, name)
+            if os.path.isfile(full_path):
+                return full_path
+            return name
+
         def kwargs_to_cli_args(kwargs):
             """Convert kwargs dict to CLI arguments list."""
             args = []
@@ -349,7 +385,7 @@ def run_remote(config: dict, remote_cfg: dict):
                 self.base_url = f"http://localhost:{port}"
 
             def _build_cmd(self):
-                cmd = ["vllm", "serve", self.model, "--port", str(self.port)]
+                cmd = [find_bin("vllm"), "serve", self.model, "--port", str(self.port)]
                 cmd.extend(kwargs_to_cli_args(self.serve_kwargs))
                 return cmd
 
@@ -421,7 +457,7 @@ def run_remote(config: dict, remote_cfg: dict):
                 self.base_url = f"http://localhost:{port}"
 
             def _build_cmd(self):
-                cmd = ["python", "-m", "sglang.launch_server",
+                cmd = [find_bin("python"), "-m", "sglang.launch_server",
                        "--model-path", self.model_path,
                        "--host", self.host,
                        "--port", str(self.port)]
@@ -492,7 +528,7 @@ def run_remote(config: dict, remote_cfg: dict):
             print("=" * 64)
             sys.stdout.flush()
 
-            cmd = ["vllm", "bench", "serve",
+            cmd = [find_bin("vllm"), "bench", "serve",
                    "--base-url", f"http://localhost:{port}",
                    "--model", model]
             cmd.extend(kwargs_to_cli_args(kwargs))
@@ -544,7 +580,7 @@ def run_remote(config: dict, remote_cfg: dict):
             sys.stdout.flush()
 
             # Build base command
-            cmd = ["python", "-m", "sglang.bench_serving",
+            cmd = [find_bin("python"), "-m", "sglang.bench_serving",
                    "--port", str(port),
                    "--model", model]
             
@@ -558,7 +594,7 @@ def run_remote(config: dict, remote_cfg: dict):
             results_config = results_config or {}
             save_result = results_config.get("save_result", False)
             result_dir = results_config.get("result_dir", "./benchmark_results")
-            output_details = results_config.get("output_details", True)
+            output_details = results_config.get("output_details", False)
             
             if save_result:
                 os.makedirs(result_dir, exist_ok=True)
@@ -605,7 +641,7 @@ def run_remote(config: dict, remote_cfg: dict):
             
             env["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
             
-            cmd = ["huggingface-cli", "download", repo_id, "--local-dir", local_dir]
+            cmd = [find_bin("huggingface-cli"), "download", repo_id, "--local-dir", local_dir]
             print(f"Running: {' '.join(cmd)} (with hf_transfer enabled)")
             sys.stdout.flush()
             

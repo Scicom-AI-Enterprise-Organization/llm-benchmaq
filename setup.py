@@ -21,7 +21,7 @@ setup(
         "paramiko",
         "scp",
         "pyremote @ git+https://github.com/Scicom-AI-Enterprise-Organization/pyremote",
-        "runpod"
+        # runpod CLI (runpodctl) is used instead of the Python SDK
     ],
     extras_require={
         # For local vLLM benchmarking
