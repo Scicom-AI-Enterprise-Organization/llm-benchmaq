@@ -1,0 +1,78 @@
+BENCHMARK: benchmaq-h100x8-llama70b_llama31_70b_TP4_DP2_in512_out128_p1000_c100_538f9a
+================================================================
+Namespace(subparser='bench', bench_type='serve', dispatch_function=<function BenchmarkServingSubcommand.cmd at 0x74a6451a1ee0>, seed=0, num_prompts=1000, dataset_name='random', no_stream=False, dataset_path=None, no_oversample=False, skip_chat_template=False, disable_shuffle=False, custom_output_len=256, spec_bench_output_len=256, spec_bench_category=None, sonnet_input_len=550, sonnet_output_len=150, sonnet_prefix_len=200, sharegpt_output_len=None, blazedit_min_distance=0.0, blazedit_max_distance=1.0, random_input_len=512, random_output_len=128, random_range_ratio=0.0, random_prefix_len=0, random_batch_size=1, no_reranker=False, random_mm_base_items_per_request=1, random_mm_num_mm_items_range_ratio=0.0, random_mm_limit_mm_per_prompt={'image': 255, 'video': 1}, random_mm_bucket_config={(256, 256, 1): 0.5, (720, 1280, 1): 0.5, (720, 1280, 16): 0.0}, hf_subset=None, hf_split=None, hf_name=None, hf_output_len=None, prefix_repetition_prefix_len=256, prefix_repetition_suffix_len=256, prefix_repetition_num_prefixes=10, prefix_repetition_output_len=128, label=None, backend='openai', base_url='http://localhost:8000', host='127.0.0.1', port=8000, endpoint='/v1/completions', header=None, max_concurrency=100, model='/workspace/models/Llama-3.1-70B', input_len=None, output_len=None, tokenizer=None, tokenizer_mode='auto', use_beam_search=False, logprobs=None, request_rate=inf, burstiness=1.0, trust_remote_code=False, disable_tqdm=False, num_warmups=0, profile=False, save_result=True, save_detailed=True, append_result=False, metadata=None, result_dir='./benchmarks/runpod_h100sxm/Llama-3.1-70B', result_filename='benchmaq-h100x8-llama70b_llama31_70b_TP4_DP2_in512_out128_p1000_c100_538f9a.json', ignore_eos=True, percentile_metrics='ttft,tpot,itl,e2el', metric_percentiles='99', goodput=None, request_id_prefix='bench-155745eb-', top_p=None, top_k=None, min_p=None, temperature=None, frequency_penalty=None, presence_penalty=None, repetition_penalty=None, served_model_name=None, lora_modules=None, ramp_up_strategy=None, ramp_up_start_rps=None, ramp_up_end_rps=None, ready_check_timeout_sec=0, extra_body=None)
+INFO 04-09 05:12:59 [datasets.py:612] Sampling input_len from [511, 511] and output_len from [128, 128]
+WARNING: vllm bench serve no longer sets temperature==0 (greedy) in requests by default. The default will be determined on the server side and can be model/API specific. For the old behavior, include --temperature=0.
+Starting initial single prompt test run...
+Skipping endpoint ready check.
+Starting main benchmark run...
+Traffic request rate: inf
+Burstiness factor: 1.0 (Poisson process)
+Maximum request concurrency: 100
+
+  0%|          | 0/1000 [00:00<?, ?it/s]
+  0%|          | 1/1000 [00:04<1:09:37,  4.18s/it]
+  0%|          | 2/1000 [00:04<29:40,  1.78s/it]  
+  6%|▌         | 60/1000 [00:04<00:35, 26.58it/s]
+ 10%|█         | 101/1000 [00:08<01:00, 14.94it/s]
+ 12%|█▏        | 118/1000 [00:08<00:48, 18.33it/s]
+ 17%|█▋        | 172/1000 [00:08<00:22, 36.00it/s]
+ 20%|█▉        | 199/1000 [00:08<00:17, 46.21it/s]
+ 22%|██▎       | 225/1000 [00:12<00:44, 17.52it/s]
+ 26%|██▌       | 262/1000 [00:12<00:27, 26.38it/s]
+ 30%|██▉       | 295/1000 [00:13<00:22, 31.41it/s]
+ 31%|███▏      | 313/1000 [00:16<00:43, 15.85it/s]
+ 36%|███▌      | 362/1000 [00:17<00:23, 26.61it/s]
+ 38%|███▊      | 383/1000 [00:17<00:20, 30.15it/s]
+ 40%|███▉      | 398/1000 [00:18<00:20, 29.81it/s]
+ 41%|████      | 409/1000 [00:21<00:42, 13.82it/s]
+ 46%|████▌     | 457/1000 [00:21<00:20, 26.21it/s]
+ 48%|████▊     | 479/1000 [00:21<00:16, 32.46it/s]
+ 49%|████▉     | 494/1000 [00:22<00:16, 31.33it/s]
+ 51%|█████     | 506/1000 [00:25<00:37, 13.16it/s]
+ 57%|█████▋    | 568/1000 [00:25<00:14, 29.72it/s]
+ 59%|█████▉    | 591/1000 [00:25<00:11, 35.67it/s]
+ 61%|██████    | 611/1000 [00:29<00:25, 15.30it/s]
+ 66%|██████▋   | 664/1000 [00:29<00:12, 27.11it/s]
+ 68%|██████▊   | 683/1000 [00:29<00:09, 32.11it/s]
+ 70%|███████   | 701/1000 [00:33<00:20, 14.92it/s]
+ 71%|███████▏  | 714/1000 [00:33<00:16, 17.22it/s]
+ 77%|███████▋  | 773/1000 [00:33<00:06, 35.05it/s]
+ 79%|███████▉  | 793/1000 [00:34<00:04, 41.46it/s]
+ 81%|████████  | 812/1000 [00:37<00:11, 15.70it/s]
+ 85%|████████▌ | 852/1000 [00:38<00:05, 25.30it/s]
+ 87%|████████▋ | 873/1000 [00:38<00:04, 31.57it/s]
+ 89%|████████▉ | 894/1000 [00:38<00:03, 33.94it/s]
+ 91%|█████████ | 910/1000 [00:42<00:06, 14.42it/s]
+ 98%|█████████▊| 985/1000 [00:42<00:00, 33.87it/s]
+100%|██████████| 1000/1000 [00:42<00:00, 23.66it/s]
+tip: install termplotlib and gnuplot to plot the metrics
+============ Serving Benchmark Result ============
+Successful requests:                     1000      
+Failed requests:                         0         
+Maximum request concurrency:             100       
+Benchmark duration (s):                  42.27     
+Total input tokens:                      511000    
+Total generated tokens:                  128000    
+Request throughput (req/s):              23.66     
+Output token throughput (tok/s):         3028.22   
+Peak output token throughput (tok/s):    5100.00   
+Peak concurrent requests:                200.00    
+Total token throughput (tok/s):          15117.43  
+---------------Time to First Token----------------
+Mean TTFT (ms):                          994.67    
+Median TTFT (ms):                        1054.85   
+P99 TTFT (ms):                           1819.12   
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          25.37     
+Median TPOT (ms):                        24.87     
+P99 TPOT (ms):                           32.32     
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           25.37     
+Median ITL (ms):                         19.79     
+P99 ITL (ms):                            246.31    
+----------------End-to-end Latency----------------
+Mean E2EL (ms):                          4216.18   
+Median E2EL (ms):                        4208.04   
+P99 E2EL (ms):                           4648.13   
+==================================================
