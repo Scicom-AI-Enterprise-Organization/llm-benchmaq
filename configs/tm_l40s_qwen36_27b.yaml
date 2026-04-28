@@ -6,14 +6,17 @@
 # ============================================================
 
 _bench_sweep: &bench_sweep
+  - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 128,  random_output_len: 128, num_prompts: 100, max_concurrency: 1,   ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
   - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 128,  random_output_len: 128, num_prompts: 500, max_concurrency: 10,  ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
   - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 128,  random_output_len: 128, num_prompts: 500, max_concurrency: 50,  ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
   - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 128,  random_output_len: 128, num_prompts: 500, max_concurrency: 100, ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
   - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 128,  random_output_len: 128, num_prompts: 500, max_concurrency: 200, ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
+  - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 1024, random_output_len: 128, num_prompts: 100, max_concurrency: 1,   ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
   - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 1024, random_output_len: 128, num_prompts: 500, max_concurrency: 10,  ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
   - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 1024, random_output_len: 128, num_prompts: 500, max_concurrency: 50,  ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
   - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 1024, random_output_len: 128, num_prompts: 500, max_concurrency: 100, ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
   - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 1024, random_output_len: 128, num_prompts: 500, max_concurrency: 200, ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
+  - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 4096, random_output_len: 128, num_prompts: 50,  max_concurrency: 1,   ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
   - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 4096, random_output_len: 128, num_prompts: 200, max_concurrency: 10,  ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
   - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 4096, random_output_len: 128, num_prompts: 200, max_concurrency: 50,  ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
   - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 4096, random_output_len: 128, num_prompts: 200, max_concurrency: 100, ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
