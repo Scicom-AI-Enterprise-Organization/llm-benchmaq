@@ -9,6 +9,7 @@ def run_benchmark(
     port: int,
     result_name: str,
     results_config: Optional[Dict[str, Any]] = None,
+    base_url: Optional[str] = None,
     **kwargs
 ):
     """Run vLLM bench serve with dynamic kwargs.
@@ -48,10 +49,13 @@ def run_benchmark(
     print("=" * 64)
     sys.stdout.flush()
 
-    # Build base command
+    # Build base command. VLLM_BIN env var lets us point at a vllm install
+    # outside the active venv (e.g. an existing serving venv on the box).
+    vllm_bin = os.environ.get("VLLM_BIN", "vllm")
+    server_url = base_url if base_url else f"http://localhost:{port}"
     cmd = [
-        "vllm", "bench", "serve",
-        "--base-url", f"http://localhost:{port}",
+        vllm_bin, "bench", "serve",
+        "--base-url", server_url,
         "--model", model,
     ]
 

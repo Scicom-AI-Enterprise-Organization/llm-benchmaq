@@ -1,0 +1,32 @@
+# ============================================================
+# Qwen3.6-35B-A3B on tm-a (2x L40S) — vLLM 0.19.0 already serving on :8000
+# Uses base_url so benchmaq skips starting a local server.
+# Run on the pod:
+#   VLLM_BIN=/opt/aura-venv/bin/vllm benchmaq bench tm_l40s_qwen36_35b.yaml
+# ============================================================
+
+_bench_sweep: &bench_sweep
+  - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 128,  random_output_len: 128, num_prompts: 500, max_concurrency: 10,  ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
+  - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 128,  random_output_len: 128, num_prompts: 500, max_concurrency: 50,  ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
+  - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 128,  random_output_len: 128, num_prompts: 500, max_concurrency: 100, ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
+  - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 128,  random_output_len: 128, num_prompts: 500, max_concurrency: 200, ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
+  - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 1024, random_output_len: 128, num_prompts: 500, max_concurrency: 10,  ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
+  - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 1024, random_output_len: 128, num_prompts: 500, max_concurrency: 50,  ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
+  - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 1024, random_output_len: 128, num_prompts: 500, max_concurrency: 100, ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
+  - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 1024, random_output_len: 128, num_prompts: 500, max_concurrency: 200, ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
+  - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 4096, random_output_len: 128, num_prompts: 200, max_concurrency: 10,  ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
+  - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 4096, random_output_len: 128, num_prompts: 200, max_concurrency: 50,  ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
+  - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 4096, random_output_len: 128, num_prompts: 200, max_concurrency: 100, ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
+  - { backend: vllm, endpoint: /v1/completions, dataset_name: random, random_input_len: 4096, random_output_len: 128, num_prompts: 200, max_concurrency: 200, ignore_eos: true, percentile_metrics: "ttft,tpot,itl,e2el" }
+
+benchmark:
+  - name: tm-l40sx2_qwen35b_a3b
+    engine: vllm
+    base_url: "http://localhost:8000"
+    model:
+      repo_id: "Qwen/Qwen3.6-35B-A3B"
+    bench: *bench_sweep
+    results:
+      save_result: true
+      result_dir: "./benchmarks/vllm/tm-l40s/Qwen3.6-35B-A3B"
+      save_detailed: true

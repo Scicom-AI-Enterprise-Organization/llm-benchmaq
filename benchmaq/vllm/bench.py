@@ -44,7 +44,21 @@ def from_yaml(config_path: str) -> Dict[str, Any]:
             results:
               save_result: true
               result_dir: "./results"
-        
+
+        # Optional: point at an already-running vLLM endpoint instead of
+        # starting a local server. When `base_url` is set, the `serve:`
+        # block and any model download are skipped.
+        benchmark:
+          - name: external_run
+            engine: vllm
+            base_url: "http://localhost:8000"
+            model:
+              repo_id: "Qwen/Qwen3-8B"
+            bench:
+              - dataset_name: random
+                random_input_len: 1024
+                num_prompts: 100
+
         # Optional: for remote execution
         remote:
           host: "gpu-server.example.com"
@@ -134,17 +148,21 @@ def _run_benchmarks(config: dict) -> List[Dict[str, Any]]:
             continue
         
         model_cfg = run_cfg.get("model", {})
-        serve_cfg = run_cfg.get("serve", {}).copy()
+        serve_cfg_raw = run_cfg.get("serve")
+        serve_cfg = serve_cfg_raw.copy() if serve_cfg_raw else {}
         bench_configs = run_cfg.get("bench", [])
         results_cfg = run_cfg.get("results", {})
-        
+        base_url = run_cfg.get("base_url")
+
         # Handle HF token
         hf_token = model_cfg.get("hf_token") or os.environ.get("HF_TOKEN")
         if hf_token:
             os.environ["HF_TOKEN"] = hf_token
-        
-        # Download model if needed
-        if model_cfg.get("repo_id") and model_cfg.get("local_dir"):
+
+        # Download model if needed. Skip when pointing at an external
+        # endpoint — the running server already has the weights, and the
+        # client only needs the model name string for the API request.
+        if not base_url and model_cfg.get("repo_id") and model_cfg.get("local_dir"):
             _download_model(model_cfg["repo_id"], model_cfg["local_dir"], hf_token)
         
         # Determine model path
@@ -168,31 +186,58 @@ def _run_benchmarks(config: dict) -> List[Dict[str, Any]]:
         print("=" * 64)
         print(f"CONFIGURATION: {name}")
         print(f"Model: {model}")
-        print(f"Serve kwargs: {serve_cfg}")
+        if base_url:
+            print(f"External endpoint: {base_url}")
+        else:
+            print(f"Serve kwargs: {serve_cfg}")
         print("=" * 64)
-        
-        with VLLMServer(model=model, port=port, **serve_cfg) as server:
+
+        if base_url:
+            # External endpoint mode — caller's vLLM server is already up.
             for i, bench_cfg in enumerate(bench_configs):
                 result_name = _generate_result_name(name, i, bench_cfg)
-                
+
                 print()
                 print(f"--- Benchmark {i + 1}/{len(bench_configs)}: {result_name} ---")
-                
+
                 run_benchmark(
                     model=model,
                     port=port,
                     result_name=result_name,
                     results_config=results_cfg,
-                    **bench_cfg
+                    base_url=base_url,
+                    **bench_cfg,
                 )
-                
+
                 results.append({
                     "name": result_name,
                     "config": name,
                     "bench_index": i,
-                    **bench_cfg
+                    **bench_cfg,
                 })
-        
+        else:
+            with VLLMServer(model=model, port=port, **serve_cfg) as server:
+                for i, bench_cfg in enumerate(bench_configs):
+                    result_name = _generate_result_name(name, i, bench_cfg)
+
+                    print()
+                    print(f"--- Benchmark {i + 1}/{len(bench_configs)}: {result_name} ---")
+
+                    run_benchmark(
+                        model=model,
+                        port=port,
+                        result_name=result_name,
+                        results_config=results_cfg,
+                        **bench_cfg
+                    )
+
+                    results.append({
+                        "name": result_name,
+                        "config": name,
+                        "bench_index": i,
+                        **bench_cfg
+                    })
+
         time.sleep(5)
     
     return results
