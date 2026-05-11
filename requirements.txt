@@ -1,6 +1,6 @@
 pyyaml
 requests
-vllm==0.15.0
+vllm
 huggingface_hub[cli,hf_transfer]
 hf_transfer
 cloudpickle

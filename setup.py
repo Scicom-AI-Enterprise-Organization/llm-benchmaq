@@ -26,7 +26,7 @@ setup(
     extras_require={
         # For local vLLM benchmarking
         "vllm": [
-            "vllm==0.15.0",
+            "vllm",
             "huggingface_hub[cli,hf_transfer]",
             "hf_transfer",
         ],
@@ -38,7 +38,7 @@ setup(
         ],
         # For STT benchmarking (uses vLLM as server + audio support)
         "stt": [
-            "vllm[audio]==0.15.0",
+            "vllm[audio]",
             "huggingface_hub[cli,hf_transfer]",
             "hf_transfer",
         ],
@@ -48,7 +48,7 @@ setup(
         ],
         # All engines and cloud providers
         "all": [
-            "vllm==0.15.0",
+            "vllm",
             "sglang[all]",
             "huggingface_hub[cli,hf_transfer]",
             "hf_transfer",
