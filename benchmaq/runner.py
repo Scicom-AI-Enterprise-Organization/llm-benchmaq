@@ -7,8 +7,33 @@ Used by both vllm.bench and runpod.bench modules.
 """
 
 import os
+import re
 import sys
 import hashlib
+from typing import List, Optional
+
+
+def _cuda_from_image(image: str) -> Optional[str]:
+    """Parse CUDA major.minor from a container image tag.
+
+    Handles common RunPod tag formats:
+      cuda12.4.1        -> 12.4
+      cu1281            -> 12.8  (1281 = 12.8.1)
+      cu124             -> 12.4
+    Returns None if no CUDA version is detectable.
+    """
+    m = re.search(r'cuda[-_:.]?(\d+)[._](\d+)', image, re.I)
+    if m:
+        return f"{m.group(1)}.{m.group(2)}"
+    m = re.search(r'\bcu(\d{4})\b', image, re.I)
+    if m:
+        s = m.group(1)
+        return f"{s[:2]}.{s[2]}"
+    m = re.search(r'\bcu(\d{3})\b', image, re.I)
+    if m:
+        s = m.group(1)
+        return f"{s[:2]}.{s[2]}"
+    return None
 
 
 def _get_all_result_dirs(config: dict) -> list:
@@ -134,17 +159,33 @@ def run_e2e(config: dict):
     storage_cfg = runpod_cfg.get("storage", {})
     ports_cfg = runpod_cfg.get("ports", {})
     env_cfg = runpod_cfg.get("env", {})
-    
+
     ports = []
     for p in ports_cfg.get("http", []):
         ports.append(f"{p}/http")
     for p in ports_cfg.get("tcp", []):
         ports.append(f"{p}/tcp")
-    
+
     instance_type = pod_cfg.get("instance_type", "spot")
     spot = instance_type == "spot"
     ssh_key_path = runpod_cfg.get("ssh_private_key")
-    
+
+    image = container_cfg.get("image", "runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04")
+
+    # Resolve allowedCudaVersions: explicit config wins; otherwise auto-detect
+    # from the container image tag so the pod only lands on a host whose driver
+    # supports the CUDA toolkit version the image was built against.
+    allowed_cuda_versions: Optional[List[str]] = pod_cfg.get("allowed_cuda_versions")
+    if not allowed_cuda_versions:
+        detected = _cuda_from_image(image)
+        if detected:
+            allowed_cuda_versions = [detected]
+            print(f"Auto-detected CUDA {detected} from image — "
+                  f"restricting to hosts with driver >= CUDA {detected}")
+        else:
+            print("Warning: could not detect CUDA version from image tag. "
+                  "Set runpod.pod.allowed_cuda_versions in your config to avoid driver mismatches.")
+
     deploy_kwargs = {
         "name": pod_cfg.get("name"),
         "gpu_type": pod_cfg.get("gpu_type"),
@@ -152,7 +193,7 @@ def run_e2e(config: dict):
         "spot": spot,
         "bid_per_gpu": pod_cfg.get("bid_per_gpu"),
         "secure_cloud": pod_cfg.get("secure_cloud", True),
-        "image": container_cfg.get("image", "runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04"),
+        "image": image,
         "container_disk_size": container_cfg.get("disk_size", 20),
         "disk_size": storage_cfg.get("volume_size", 100),
         "volume_mount_path": storage_cfg.get("mount_path", "/workspace"),
@@ -160,6 +201,7 @@ def run_e2e(config: dict):
         "env": env_cfg if env_cfg else None,
         "ssh_key_path": ssh_key_path,
         "wait_for_ready": True,
+        "allowed_cuda_versions": allowed_cuda_versions,
     }
     
     pod_id = None

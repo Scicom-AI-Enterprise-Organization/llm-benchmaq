@@ -1,10 +1,14 @@
-"""RunPod client using runpodctl CLI for pod management."""
+"""RunPod client — pod creation via REST API, lifecycle via runpodctl."""
 
 import json
 import os
 import subprocess
 import time
-from typing import Optional
+from typing import List, Optional
+
+import requests
+
+RUNPOD_API_BASE = "https://rest.runpod.io/v1"
 
 
 def _run_runpodctl(*args, timeout=120) -> subprocess.CompletedProcess:
@@ -21,7 +25,6 @@ def _parse_json(output: str) -> dict:
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        # Find first { or [ in the output
         for i, ch in enumerate(text):
             if ch in ("{", "["):
                 try:
@@ -29,6 +32,61 @@ def _parse_json(output: str) -> dict:
                 except json.JSONDecodeError:
                     continue
         raise ValueError(f"No JSON found in output: {text[:200]}")
+
+
+def _create_pod_via_api(
+    api_key: str,
+    name: str,
+    image: str,
+    gpu_type: str,
+    gpu_count: int,
+    cloud_type: str,
+    container_disk_gb: int,
+    volume_gb: int,
+    volume_mount_path: str,
+    ports: str,
+    env: dict,
+    allowed_cuda_versions: List[str],
+) -> str:
+    """Create a pod via the RunPod REST API and return its pod_id.
+
+    Uses the REST API instead of runpodctl so we can pass allowedCudaVersions,
+    which ensures the pod only lands on a host whose NVIDIA driver supports the
+    CUDA version baked into the container image.
+    """
+    body: dict = {
+        "name": name,
+        "imageName": image,
+        "gpuTypeIds": [gpu_type],
+        "cloudType": cloud_type,
+        "gpuCount": gpu_count,
+        "containerDiskInGb": container_disk_gb,
+        "volumeInGb": volume_gb,
+        "volumeMountPath": volume_mount_path,
+        "startSsh": True,
+        "ports": ports,
+        "env": env,
+    }
+    if allowed_cuda_versions:
+        body["allowedCudaVersions"] = allowed_cuda_versions
+
+    r = requests.post(
+        f"{RUNPOD_API_BASE}/pods",
+        json=body,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        timeout=30,
+    )
+    if r.status_code >= 400:
+        raise Exception(f"RunPod API error {r.status_code}: {r.text[:400]}")
+
+    data = r.json()
+    pod_id = data.get("id")
+    if not pod_id:
+        raise Exception(f"No pod ID in RunPod response: {str(data)[:300]}")
+    return pod_id
 
 
 def set_api_key(key: str):
@@ -63,61 +121,51 @@ def deploy(
     ports: Optional[str] = None,
     ssh_key_path: Optional[str] = None,
     wait_for_ready: bool = True,
+    allowed_cuda_versions: Optional[List[str]] = None,
     **kwargs,
 ) -> dict:
-    """Deploy a RunPod GPU pod using runpodctl CLI."""
+    """Deploy a RunPod GPU pod via the REST API.
+
+    Pod creation uses the REST API (not runpodctl) so that allowedCudaVersions
+    can be passed and RunPod only assigns hosts whose NVIDIA driver is compatible
+    with the CUDA toolkit in the container image.
+    """
+    api_key = get_api_key()
+    if not api_key:
+        raise Exception("RUNPOD_API_KEY is not set — call set_api_key() first")
+
     if env is None:
         env = {}
-
     if ports is None:
-        ports = "8888/http,8000/http,22/tcp"
+        ports = "8000/http,22/tcp"
     elif isinstance(ports, list):
         ports = ",".join(ports)
-
     if name is None:
         name = f"{gpu_type}_{gpu_count}".replace(" ", "_")
 
-    if spot:
-        print("Note: runpodctl creates on-demand pods. Spot/bid config is ignored.")
-
     cloud_type = "SECURE" if secure_cloud else "COMMUNITY"
 
-    cmd_args = [
-        "pod", "create",
-        "--image", image,
-        "--gpu-id", gpu_type,
-        "--gpu-count", str(gpu_count),
-        "--container-disk-in-gb", str(container_disk_size),
-        "--volume-in-gb", str(disk_size),
-        "--volume-mount-path", volume_mount_path,
-        "--ports", ports,
-        "--cloud-type", cloud_type,
-        "--name", name,
-        "--ssh",
-    ]
-
-    if env:
-        cmd_args.extend(["--env", json.dumps(env)])
-
     print(f"Creating pod: {name}")
-    print(f"  GPU: {gpu_type} x{gpu_count}")
+    print(f"  GPU: {gpu_type} x{gpu_count}  cloud: {cloud_type}")
     print(f"  Image: {image}")
     print(f"  Storage: {disk_size}GB volume, {container_disk_size}GB container disk")
+    if allowed_cuda_versions:
+        print(f"  allowedCudaVersions: {allowed_cuda_versions}")
 
-    result = _run_runpodctl(*cmd_args, timeout=120)
-
-    if result.returncode != 0:
-        error = result.stderr.strip() or result.stdout.strip()
-        raise Exception(f"Failed to create pod: {error}")
-
-    try:
-        pod_data = _parse_json(result.stdout)
-    except ValueError:
-        raise Exception(f"Could not parse pod creation output: {result.stdout.strip()[:300]}")
-
-    pod_id = pod_data.get("id")
-    if not pod_id:
-        raise Exception(f"No pod ID in creation response: {result.stdout.strip()[:300]}")
+    pod_id = _create_pod_via_api(
+        api_key=api_key,
+        name=name,
+        image=image,
+        gpu_type=gpu_type,
+        gpu_count=gpu_count,
+        cloud_type=cloud_type,
+        container_disk_gb=container_disk_size,
+        volume_gb=disk_size,
+        volume_mount_path=volume_mount_path,
+        ports=ports,
+        env=env,
+        allowed_cuda_versions=allowed_cuda_versions or [],
+    )
 
     print(f"Pod created: {pod_id}")
 
