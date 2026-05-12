@@ -13,6 +13,67 @@ import hashlib
 from typing import List, Optional
 
 
+def _cuda_ver_tuple(ver: str) -> tuple:
+    """Parse 'major.minor' string into a comparable int tuple."""
+    try:
+        parts = ver.strip().split(".")
+        return (int(parts[0]), int(parts[1]))
+    except Exception:
+        return (0, 0)
+
+
+def _check_cuda_compat(ssh_info: dict, ssh_key_path: Optional[str], required_cuda: str) -> None:
+    """SSH into the pod and verify the NVIDIA driver supports required_cuda.
+
+    Runs nvidia-smi on the host and parses the 'CUDA Version' field, which
+    reports the maximum CUDA version the installed driver can support.  Raises
+    RuntimeError if that ceiling is below the version required by the container
+    image so the caller can tear the pod down before wasting time on setup.
+    """
+    import paramiko
+
+    host = ssh_info["ip"]
+    port = ssh_info["port"]
+    key_path = os.path.expanduser(ssh_key_path or "~/.runpod/ssh/RunPod-Key-Go")
+
+    print()
+    print("=" * 64)
+    print("PRE-FLIGHT: CUDA / DRIVER COMPATIBILITY CHECK")
+    print("=" * 64)
+    print(f"  Required container CUDA : {required_cuda}")
+
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        client.connect(host, port=port, username="root", key_filename=key_path, timeout=30)
+        _, stdout, _ = client.exec_command(
+            "nvidia-smi 2>/dev/null | grep -oE 'CUDA Version: [0-9]+\\.[0-9]+' | awk '{print $NF}'"
+        )
+        driver_cuda = stdout.read().decode().strip()
+    finally:
+        client.close()
+
+    if not driver_cuda:
+        raise RuntimeError(
+            "Could not read CUDA version from nvidia-smi — "
+            "GPU may not be accessible inside the container."
+        )
+
+    print(f"  Driver max CUDA support : {driver_cuda}")
+
+    req = _cuda_ver_tuple(required_cuda)
+    got = _cuda_ver_tuple(driver_cuda)
+
+    if got < req:
+        raise RuntimeError(
+            f"CUDA mismatch: container needs {required_cuda} but the host driver "
+            f"only supports up to {driver_cuda}. "
+            f"Tearing down pod to avoid a broken benchmark run."
+        )
+
+    print(f"  Result                  : OK ({driver_cuda} >= {required_cuda})")
+
+
 def _cuda_from_image(image: str) -> Optional[str]:
     """Parse CUDA major.minor from a container image tag.
 
@@ -231,10 +292,16 @@ def run_e2e(config: dict):
 
         if "ssh" not in instance:
             raise Exception("SSH info not available from pod deployment")
-        
+
         ssh_info = instance["ssh"]
         print(f"SSH: {ssh_info['command']}")
-        
+
+        # Verify driver supports the container's CUDA version before spending
+        # time on model downloads and vLLM setup.  Raises RuntimeError on
+        # mismatch — the finally block below will delete the pod.
+        if allowed_cuda_versions:
+            _check_cuda_compat(ssh_info, ssh_key_path, allowed_cuda_versions[0])
+
         auto_remote_cfg = {
             "host": ssh_info["ip"],
             "port": ssh_info["port"],
@@ -243,7 +310,7 @@ def run_e2e(config: dict):
             "uv": remote_cfg.get("uv", {}),
             "dependencies": remote_cfg.get("dependencies", []),
         }
-        
+
         print()
         print("=" * 64)
         print("STEP 2: RUNNING BENCHMARKS")
