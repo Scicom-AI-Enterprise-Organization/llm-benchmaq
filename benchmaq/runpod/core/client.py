@@ -63,7 +63,10 @@ def _create_pod_via_api(
         "containerDiskInGb": container_disk_gb,
         "volumeInGb": volume_gb,
         "volumeMountPath": volume_mount_path,
-        "startSsh": True,
+        # SSH on the REST API: just expose 22/tcp via `ports` and inject the
+        # public key as PUBLIC_KEY env var. There is no `startSsh` flag — the
+        # RunPod pytorch/ubuntu templates have sshd preinstalled and read
+        # PUBLIC_KEY into authorized_keys on boot.
         "ports": ports.split(",") if isinstance(ports, str) else ports,
         "env": env,
     }
@@ -142,6 +145,20 @@ def deploy(
         ports = ",".join(ports)
     if name is None:
         name = f"{gpu_type}_{gpu_count}".replace(" ", "_")
+
+    # Inject PUBLIC_KEY so the RunPod template appends it to authorized_keys at
+    # boot. Without this, the pod comes up with no SSH access and our
+    # nvidia-smi pre-flight check (and the rest of the run) can't connect.
+    # runpodctl used to do this transparently from ~/.runpod/ssh/*.pub, so we
+    # replicate that behaviour here.
+    if "PUBLIC_KEY" not in env and ssh_key_path:
+        pub_path = os.path.expanduser(ssh_key_path) + ".pub"
+        if os.path.exists(pub_path):
+            try:
+                with open(pub_path, "r") as f:
+                    env["PUBLIC_KEY"] = f.read().strip()
+            except Exception:
+                pass
 
     cloud_type = "SECURE" if secure_cloud else "COMMUNITY"
 
