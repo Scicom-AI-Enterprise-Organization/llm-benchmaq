@@ -64,7 +64,7 @@ def _create_pod_via_api(
         "volumeInGb": volume_gb,
         "volumeMountPath": volume_mount_path,
         "startSsh": True,
-        "ports": ports,
+        "ports": ports.split(",") if isinstance(ports, str) else ports,
         "env": env,
     }
     if allowed_cuda_versions:
