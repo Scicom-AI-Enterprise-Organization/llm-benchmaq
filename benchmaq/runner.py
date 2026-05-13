@@ -780,6 +780,8 @@ def run_remote(config: dict, remote_cfg: dict):
                 continue
             
             model_cfg = run_cfg.get("model", {})
+            if model_cfg.get("local_dir"):
+                model_cfg["local_dir"] = os.path.expanduser(model_cfg["local_dir"])
             serve_cfg = run_cfg.get("serve", {}).copy()
             bench_configs = run_cfg.get("bench", [])
             results_cfg = run_cfg.get("results", {})
