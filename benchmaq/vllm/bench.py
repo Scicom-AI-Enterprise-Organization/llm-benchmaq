@@ -77,20 +77,20 @@ def _run(config: dict) -> Dict[str, Any]:
     # Check for remote execution
     remote_cfg = config.get("remote")
     if remote_cfg:
-        from benchmaq.runner import run_remote, _download_results
-        
-        print("Remote execution enabled")
+        from benchmaq.runner import run_remote_dispatch, _download_results
+
+        backend = remote_cfg.get("backend", "pyremote")
+        print(f"Remote execution enabled (backend: {backend})")
         print(f"Host: {remote_cfg.get('host')}:{remote_cfg.get('port', 22)}")
         print()
-        
-        run_remote(config, remote_cfg)
-        
-        # Download results from remote
+
+        run_remote_dispatch(config, remote_cfg)
+
         try:
             _download_results(config, remote_cfg)
         except Exception as e:
             print(f"Warning: Failed to download results: {e}")
-        
+
         return {"status": "success", "mode": "remote", "host": remote_cfg.get("host")}
     
     # Local execution

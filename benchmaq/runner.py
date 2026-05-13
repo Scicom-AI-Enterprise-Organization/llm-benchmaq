@@ -309,6 +309,7 @@ def run_e2e(config: dict):
             "key_filename": ssh_key_path or remote_cfg.get("key_filename"),
             "uv": remote_cfg.get("uv", {}),
             "dependencies": remote_cfg.get("dependencies", []),
+            "backend": remote_cfg.get("backend", "pyremote"),
         }
 
         print()
@@ -322,7 +323,7 @@ def run_e2e(config: dict):
                 original_name = bench_cfg.get("name", "benchmark")
                 bench_cfg["name"] = f"{pod_name}_{original_name}"
         
-        run_remote(config, auto_remote_cfg)
+        run_remote_dispatch(config, auto_remote_cfg)
         
         print()
         print("=" * 64)
@@ -849,10 +850,151 @@ def run_remote(config: dict, remote_cfg: dict):
         return {"status": "completed"}
 
     result = execute_benchmark()
-    
+
     print()
     print("=" * 64)
     print("Remote execution completed!")
     print("=" * 64)
-    
+
     return result
+
+
+# =============================================================================
+# SSH-based remote execution (live streaming, no pyremote buffering)
+# =============================================================================
+
+def _ssh_run_stream(ssh_client, cmd: str, label: str = "") -> int:
+    """Run a shell script over SSH and stream output line-by-line as it arrives.
+
+    Uses `bash -s` so the script is fed via stdin — avoids shell-escaping
+    multiline commands.  stdout and stderr are combined on the remote side.
+    Returns the remote exit code.
+    """
+    channel = ssh_client.get_transport().open_session()
+    channel.set_combine_stderr(True)
+    channel.exec_command("bash -s")
+    channel.sendall(cmd.encode("utf-8"))
+    channel.shutdown_write()
+
+    prefix = f"[{label}] " if label else ""
+    buf = ""
+    while True:
+        chunk = channel.recv(4096)
+        if not chunk:
+            break
+        buf += chunk.decode("utf-8", errors="replace")
+        while "\n" in buf:
+            line, buf = buf.split("\n", 1)
+            print(f"{prefix}{line}", flush=True)
+    if buf:
+        print(f"{prefix}{buf}", flush=True)
+
+    return channel.recv_exit_status()
+
+
+def run_remote_ssh(config: dict, remote_cfg: dict):
+    """Execute benchmark on a remote server via paramiko SSH with live log streaming.
+
+    Unlike run_remote() (pyremote), this installs benchmaq on the remote,
+    uploads the config YAML, and runs `benchmaq bench` — streaming every
+    line back in real time with no buffering.
+
+    Config keys under remote:
+        backend: ssh               # selects this runner
+        host, port, username,
+        key_filename, password     # SSH connection
+        uv:
+          path: ~/.bench-venv      # venv location on remote
+          python_version: "3.11"
+          benchmaq_ref: "git+https://..."   # install source
+          vllm_version: "0.15.0"   # optional pin (omit for latest)
+    """
+    import io
+    import yaml
+    import paramiko
+
+    host = remote_cfg["host"]
+    port = remote_cfg.get("port", 22)
+    username = remote_cfg.get("username", "root")
+    key_filename = remote_cfg.get("key_filename")
+    password = remote_cfg.get("password")
+
+    uv_cfg = remote_cfg.get("uv", {})
+    venv_path = uv_cfg.get("path", "~/.bench-venv")
+    python_version = uv_cfg.get("python_version", "3.11")
+    benchmaq_ref = uv_cfg.get(
+        "benchmaq_ref",
+        "git+https://github.com/Scicom-AI-Enterprise-Organization/llm-benchmaq.git@main",
+    )
+    vllm_version = uv_cfg.get("vllm_version")
+
+    if key_filename:
+        key_filename = os.path.expanduser(key_filename)
+
+    print(f"Connecting to {username}@{host}:{port} (ssh backend)...")
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    connect_kwargs = {"port": port, "username": username}
+    if key_filename:
+        connect_kwargs["key_filename"] = key_filename
+    if password:
+        connect_kwargs["password"] = password
+    ssh.connect(host, **connect_kwargs)
+
+    try:
+        # --- install uv + benchmaq ---
+        vllm_pin = f' "vllm=={vllm_version}"' if vllm_version else ""
+        setup_script = f"""\
+set -e
+if ! command -v uv &>/dev/null && ! [ -f "$HOME/.local/bin/uv" ]; then
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+export PATH="$HOME/.local/bin:$PATH"
+uv venv {venv_path} --python {python_version}
+source {venv_path}/bin/activate
+uv pip install "benchmaq[vllm] @ {benchmaq_ref}"{vllm_pin}
+"""
+        print()
+        print("=" * 64)
+        print("STEP: INSTALL")
+        print("=" * 64)
+        rc = _ssh_run_stream(ssh, setup_script, label="install")
+        if rc != 0:
+            raise RuntimeError(f"Remote setup failed (exit {rc})")
+
+        # --- upload config via SFTP ---
+        remote_config_path = "/tmp/benchmaq_remote_config.yaml"
+        print()
+        print(f"Uploading config → {remote_config_path}")
+        config_bytes = yaml.dump(config, default_flow_style=False).encode("utf-8")
+        with ssh.open_sftp() as sftp:
+            sftp.putfo(io.BytesIO(config_bytes), remote_config_path)
+
+        # --- run benchmark ---
+        run_script = f"""\
+set -e
+export PATH="$HOME/.local/bin:$PATH"
+source {venv_path}/bin/activate
+benchmaq bench {remote_config_path}
+"""
+        print()
+        print("=" * 64)
+        print("STEP: BENCHMARK")
+        print("=" * 64)
+        rc = _ssh_run_stream(ssh, run_script, label="bench")
+        if rc != 0:
+            raise RuntimeError(f"Remote benchmark failed (exit {rc})")
+
+    finally:
+        ssh.close()
+
+
+def run_remote_dispatch(config: dict, remote_cfg: dict):
+    """Choose run_remote_ssh (backend: ssh) or run_remote (backend: pyremote, default)."""
+    backend = remote_cfg.get("backend", "pyremote")
+    if backend == "ssh":
+        run_remote_ssh(config, remote_cfg)
+    else:
+        run_remote(config, remote_cfg)
