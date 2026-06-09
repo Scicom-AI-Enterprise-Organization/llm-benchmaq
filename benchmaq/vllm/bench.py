@@ -120,7 +120,10 @@ def _download_model(repo_id: str, local_dir: str, hf_token: Optional[str] = None
     
     env["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
     
-    cmd = ["huggingface-cli", "download", repo_id, "--local-dir", local_dir]
+    import shutil
+    # huggingface-cli was removed in huggingface_hub>=1.0; prefer `hf`, fall back to legacy for old hub.
+    hf_bin = "hf" if shutil.which("hf") else "huggingface-cli"
+    cmd = [hf_bin, "download", repo_id, "--local-dir", local_dir]
     print(f"Running: {' '.join(cmd)}")
     
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, env=env)

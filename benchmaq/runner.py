@@ -751,7 +751,10 @@ def run_remote(config: dict, remote_cfg: dict):
             
             env["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
             
-            cmd = [find_bin("huggingface-cli"), "download", repo_id, "--local-dir", local_dir]
+            # huggingface-cli was removed in huggingface_hub>=1.0 (newer models e.g. Gemma 4 need
+            # transformers>=5.5 -> hub>=1.0). Prefer the new `hf` CLI; fall back to legacy for old hub.
+            hf_name = "hf" if os.path.isfile(os.path.join(venv_bin, "hf")) else "huggingface-cli"
+            cmd = [find_bin(hf_name), "download", repo_id, "--local-dir", local_dir]
             print(f"Running: {' '.join(cmd)} (with hf_transfer enabled)")
             sys.stdout.flush()
             
