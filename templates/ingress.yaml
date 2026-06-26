@@ -1,0 +1,16 @@
+# Provider template: INGRESS (already-running, ingressed vLLM endpoint)
+#
+# Use when you have already `vllm serve`d a model and exposed it (k8s ingress,
+# tunnel, etc). benchmaq skips provisioning, model download and serving, and
+# only runs the benchmark client against this URL.
+#
+# Reference it from a config with:
+#     extends: ../../templates/ingress.yaml
+# then set `model.repo_id` to the served model name and fill in `bench:`.
+#
+# NOTE: base_url goes straight to vLLM's OpenAI API with no auth header. Point
+# it at the raw vLLM ingress, not a gateway that requires `sgpu_…` keys.
+# Runs locally (no `remote:` block) — needs `vllm` installed on the box you run
+# benchmaq from.
+
+base_url: "https://CHANGE-ME.your-ingress-host"

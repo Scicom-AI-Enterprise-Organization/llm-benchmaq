@@ -155,7 +155,10 @@ def _run_benchmarks(config: dict) -> List[Dict[str, Any]]:
         serve_cfg = serve_cfg_raw.copy() if serve_cfg_raw else {}
         bench_configs = run_cfg.get("bench", [])
         results_cfg = run_cfg.get("results", {})
-        base_url = run_cfg.get("base_url")
+        # Per-entry base_url wins; fall back to a top-level one so an ingress
+        # template (extends: templates/ingress.yaml) can set it once for all
+        # benchmark entries.
+        base_url = run_cfg.get("base_url") or config.get("base_url")
 
         # Handle HF token
         hf_token = model_cfg.get("hf_token") or os.environ.get("HF_TOKEN")

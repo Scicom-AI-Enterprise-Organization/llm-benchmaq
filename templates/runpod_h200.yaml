@@ -1,0 +1,47 @@
+# Provider template: RUNPOD (provision a pod, serve, bench, tear down)
+#
+# Full end-to-end: benchmaq deploys the pod, builds the venv, downloads the
+# model, `vllm serve`s it, runs the benchmark, downloads results, deletes the
+# pod (also on Ctrl+C).
+#
+# Reference it from a config with:
+#     extends: ../../templates/runpod_h200.yaml
+# then supply per-model `model:`, `serve:` and `bench:`.
+#
+# Secrets: prefer env vars (RUNPOD_API_KEY, HF_TOKEN) over hardcoding here.
+# Override any single value by restating its top-level block in the child
+# config (merge is shallow — restate the whole `runpod:` block to change it).
+
+runpod:
+  # runpod_api_key: ""        # or set RUNPOD_API_KEY env var
+  ssh_private_key: "~/.runpod/ssh/RunPod-Key-Go"
+  pod:
+    name: "benchmaq-h200"
+    gpu_type: "NVIDIA H200"
+    gpu_count: 8
+    instance_type: on_demand  # or "spot"
+    secure_cloud: true
+  container:
+    image: "runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404"
+    disk_size: 700
+  storage:
+    volume_size: 700
+    mount_path: "/workspace"
+  ports:
+    http: [8000]
+    tcp: [22]
+  env:
+    HF_HOME: "/workspace/hf_home"
+    # HF_TOKEN: ""             # or set HF_TOKEN env var
+
+remote:
+  username: root
+  uv:
+    path: ~/.benchmark-venv
+    python_version: "3.11"
+  dependencies:
+    - vllm==0.19.1
+    - pyyaml
+    - requests
+    - huggingface_hub[hf_transfer]
+    - hf_transfer

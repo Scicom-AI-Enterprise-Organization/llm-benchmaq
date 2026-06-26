@@ -1,0 +1,27 @@
+# Provider template: VM (your own GPU box over SSH)
+#
+# benchmaq SSHes into an existing server, builds a uv venv, downloads the
+# model, serves it, runs the benchmark and pulls results back. The box stays
+# up (unlike runpod, nothing is torn down).
+#
+# Reference it from a config with:
+#     extends: ../../templates/vm.yaml
+# then supply per-model `model:`, `serve:` and `bench:`.
+#
+# Fill host/key_filename for your server. Override by restating the whole
+# `remote:` block in the child config (shallow merge).
+
+remote:
+  host: "CHANGE-ME.gpu-server.example.com"
+  port: 22
+  username: "root"
+  key_filename: "~/.ssh/id_rsa"
+  uv:
+    path: ~/.benchmark-venv
+    python_version: "3.11"
+  dependencies:
+    - vllm==0.19.1
+    - pyyaml
+    - requests
+    - huggingface_hub[hf_transfer]
+    - hf_transfer
